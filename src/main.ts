@@ -1,4 +1,6 @@
 import { marked } from "marked";
+import hljs from "highlight.js";
+import "highlight.js/styles/github.css";
 import "katex/dist/katex.min.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { save, open } from "@tauri-apps/plugin-dialog";
@@ -6,6 +8,32 @@ import { writeTextFile, readTextFile, writeFile } from "@tauri-apps/plugin-fs";
 import { exit } from "@tauri-apps/plugin-process";
 import renderMathInElement from "katex/contrib/auto-render";
 import jsPDF from "jspdf";
+
+// Configure marked with syntax highlighting
+marked.use({
+  extensions: [{
+    name: 'highlight',
+    level: 'block',
+    start: (src: string) => src.match(/^```/)?.index,
+    tokenizer(src: string) {
+      const rule = /^```(\w+)?\n([\s\S]*?)\n```/;
+      const match = rule.exec(src);
+      if (match) {
+        return {
+          type: 'highlight',
+          raw: match[0],
+          lang: match[1],
+          text: match[2]
+        };
+      }
+    },
+    renderer(token: any) {
+      const validLang = token.lang && hljs.getLanguage(token.lang) ? token.lang : 'plaintext';
+      const highlighted = hljs.highlight(token.text, { language: validLang }).value;
+      return `<pre><code class="hljs language-${validLang}">${highlighted}</code></pre>`;
+    }
+  }]
+});
 
 // UI Elements
 const markdownInput = document.getElementById('markdown-input') as HTMLTextAreaElement;

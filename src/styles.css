@@ -363,6 +363,87 @@ body.dark {
   color: var(--accent);
 }
 
+/* Syntax Highlighting Styles */
+.hljs {
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 0.5em;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  line-height: 1.4;
+}
+
+/* Dark theme syntax highlighting */
+body.dark .hljs {
+  background: #2d3748;
+  color: #e2e8f0;
+}
+
+body.dark .hljs-keyword {
+  color: #63b3ed;
+}
+
+body.dark .hljs-string {
+  color: #68d391;
+}
+
+body.dark .hljs-number {
+  color: #fbb6ce;
+}
+
+body.dark .hljs-comment {
+  color: #718096;
+  font-style: italic;
+}
+
+body.dark .hljs-function {
+  color: #f6ad55;
+}
+
+body.dark .hljs-variable {
+  color: #9f7aea;
+}
+
+body.dark .hljs-operator {
+  color: #ed64a6;
+}
+
+/* Light theme syntax highlighting */
+body.light .hljs {
+  background: #f7fafc;
+  color: #2d3748;
+}
+
+body.light .hljs-keyword {
+  color: #3182ce;
+}
+
+body.light .hljs-string {
+  color: #38a169;
+}
+
+body.light .hljs-number {
+  color: #d53f8c;
+}
+
+body.light .hljs-comment {
+  color: #a0aec0;
+  font-style: italic;
+}
+
+body.light .hljs-function {
+  color: #dd6b20;
+}
+
+body.light .hljs-variable {
+  color: #805ad5;
+}
+
+body.light .hljs-operator {
+  color: #e53e3e;
+}
+
 /* Add to your styles.css */
 .copy-ai-response {
   margin: 0.5em 0 0.5em 0;
