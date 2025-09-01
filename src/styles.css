@@ -448,10 +448,10 @@ body.dark {
 .container {
     display: grid;
     /* Set minimum width of 250px for each panel */
-    grid-template-columns: 280px 6px 1.5fr 6px 1fr;
+    grid-template-columns: 350px 6px 1.5fr 6px 1fr;
     gap: 0;
     flex: 1;
-    overflow: visible;
+    overflow: hidden;
     height: 100%;
     width: 100%;
     background: var(--sidebar-bg);
@@ -476,12 +476,13 @@ body.dark {
 .panel {
     min-width: 250px; /* Enforce minimum width */
     width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
     border-right: 1px solid var(--border);
     background: var(--editor-bg);
     background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
-    overflow: visible;
+    overflow: hidden;
     box-shadow: inset 1px 0 0 var(--border), 0 2px 8px var(--shadow);
     position: relative;
 }
@@ -704,7 +705,6 @@ body.dark {
     -webkit-tab-size: 4;
     word-wrap: break-word;
     overflow-wrap: break-word;
-    border-radius: 8px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     z-index: 2;
@@ -727,6 +727,7 @@ body.dark {
 .markdown-preview {
     flex: 1;
     overflow-y: auto;
+    min-height: 0;
     padding: 1.25rem;
     font-size: 0.95rem;
     line-height: 1.7;
