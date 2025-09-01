@@ -1057,11 +1057,9 @@ function positionToolbar(selection: { start: number; end: number }) {
   if (!markdownInput || !selectionToolbar) return;
 
   const textareaRect = markdownInput.getBoundingClientRect();
-  const textMetrics = markdownInput.getBoundingClientRect();
 
   // Get the position of the selection
   const startPos = getCaretCoordinates(markdownInput, selection.start);
-  const endPos = getCaretCoordinates(markdownInput, selection.end);
 
   // Position toolbar above the selection
   const toolbarX = textareaRect.left + startPos.left;
