@@ -1,16 +1,21 @@
 # 🚀 MarkGPT
 
+<center>
+
+![MarkGPT Preview](./assets/image.png)
+
+
 [![Tauri](https://img.shields.io/badge/Tauri-2.0.0-24C8DB?style=for-the-badge&logo=tauri)](https://tauri.app/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6.2-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-6.0.3-646CFF?style=for-the-badge&logo=vite)](https://vitejs.dev/)
 [![GitHub stars](https://img.shields.io/github/stars/yourusername/markgpt?style=for-the-badge&color=yellow)](https://github.com/yourusername/markgpt/stargazers)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
+</center>
+
 > **Beautiful AI-Powered Markdown Editor for Desktop** ✨
 
 MarkGPT is a sleek, powerful desktop application built with [Tauri](https://tauri.app/) and vanilla TypeScript. It combines the simplicity of Markdown editing with the intelligence of AI, providing a seamless writing experience with live preview, AI chat assistance, and export capabilities.
-
-![MarkGPT Preview](https://via.placeholder.com/800x400/24C8DB/FFFFFF?text=MarkGPT+Screenshot) *(Replace with actual screenshot)*
 
 ## 🌟 Features
 
