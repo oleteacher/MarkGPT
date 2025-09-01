@@ -1,0 +1,1270 @@
+import { marked } from "marked";
+import "katex/dist/katex.min.css";
+import "@fortawesome/fontawesome-free/css/all.min.css";
+import { save, open } from "@tauri-apps/plugin-dialog";
+import { writeTextFile, readTextFile, writeFile } from "@tauri-apps/plugin-fs";
+import { exit } from "@tauri-apps/plugin-process";
+import renderMathInElement from "katex/contrib/auto-render";
+import jsPDF from "jspdf";
+
+// UI Elements
+const markdownInput = document.getElementById('markdown-input') as HTMLTextAreaElement;
+const markdownPreview = document.getElementById('markdown-preview') as HTMLDivElement;
+const tabsContainer = document.getElementById('tabs') as HTMLDivElement;
+const statusMsg = document.getElementById('status-msg') as HTMLSpanElement;
+
+// Validate essential UI elements exist
+if (!markdownInput || !markdownPreview) {
+  console.error("Required editor or preview elements not found");
+}
+
+// Tab structure
+interface Tab {
+  id: string;
+  title: string;
+  path: string | null;
+  content: string;
+  hasUnsavedChanges: boolean;
+  history: string[];
+  historyIndex: number;
+}
+
+// Tab management state
+const allTabs: Tab[] = [];
+let activeTabIndex = -1;
+let untitledFileCounter = 1;
+
+// Generate unique ID for tabs
+function createUniqueId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+// Update tabs display
+function refreshTabsDisplay(): void {
+  if (!tabsContainer) return;
+
+  tabsContainer.innerHTML = "";
+
+  allTabs.forEach((tab, index) => {
+    const tabElement = document.createElement('div');
+    const isActiveTab = index === activeTabIndex;
+
+    tabElement.className = 'tab' + (isActiveTab ? ' active' : '');
+    tabElement.dataset.index = String(index);
+
+    tabElement.innerHTML = `
+      <span class="tab-title">${tab.title}</span>
+      ${tab.hasUnsavedChanges ? '<span class="unsaved">*</span>' : ''}
+      <span class="close" title="Close tab">&times;</span>
+    `;
+
+    // Handle tab click (switch to tab)
+    tabElement.addEventListener('click', (event) => {
+      const target = event.target as HTMLElement;
+      if (!target.classList.contains('close')) {
+        switchToTab(index);
+      }
+    });
+
+    // Handle close button click
+    const closeButton = tabElement.querySelector('.close') as HTMLElement;
+    closeButton.addEventListener('click', (event) => {
+      event.stopPropagation();
+      closeTab(index);
+    });
+
+    tabsContainer.appendChild(tabElement);
+  });
+}
+
+// Create new tab
+function createNewTab(filePath: string | null = null, content = "", title?: string, makeActive = true): Tab {
+  const newId = createUniqueId();
+
+  let displayTitle: string;
+  if (title) {
+    displayTitle = title;
+  } else if (filePath) {
+    displayTitle = filePath.split('/').pop() || filePath;
+  } else {
+    displayTitle = `Untitled ${untitledFileCounter++}`;
+  }
+
+  const newTab: Tab = {
+    id: newId,
+    title: displayTitle,
+    path: filePath,
+    content: content,
+    hasUnsavedChanges: false,
+    history: [content],
+    historyIndex: 0
+  };
+
+  allTabs.push(newTab);
+
+  if (makeActive) {
+    activeTabIndex = allTabs.length - 1;
+    showTabContent(newTab);
+  }
+
+  refreshTabsDisplay();
+  return newTab;
+}
+
+// Show content of a specific tab
+async function showTabContent(tab: Tab) {
+  if (!markdownInput || !markdownPreview) return;
+
+  markdownInput.value = tab.content;
+
+  const parseResult = marked.parse(tab.content || "");
+  if (typeof parseResult === 'string') {
+    markdownPreview.innerHTML = parseResult;
+  } else {
+    markdownPreview.innerHTML = await parseResult;
+  }
+  renderMathFormulas();
+  updateWordAndCharacterCount();
+  updateUndoRedoButtons();
+
+  if (statusMsg) {
+    statusMsg.textContent = tab.path ? tab.path : "Unsaved file";
+  }
+}
+
+// Switch to specific tab
+function switchToTab(index: number): void {
+  if (index < 0 || index >= allTabs.length) return;
+
+  activeTabIndex = index;
+  showTabContent(allTabs[index]);
+  refreshTabsDisplay();
+}
+
+// Close a tab
+async function closeTab(index: number): Promise<void> {
+  if (index < 0 || index >= allTabs.length) return;
+
+  const tab = allTabs[index];
+
+  // Ask user if they want to close unsaved tab
+  if (tab.hasUnsavedChanges) {
+    const userConfirmed = confirm(`Tab "${tab.title}" has unsaved changes. Close anyway?`);
+    if (!userConfirmed) return;
+  }
+
+  allTabs.splice(index, 1);
+
+  // If no tabs left, create a new empty one
+  if (allTabs.length === 0) {
+    createNewTab(null, "");
+  } else {
+    // Adjust active tab index if needed
+    if (activeTabIndex >= allTabs.length) {
+      activeTabIndex = allTabs.length - 1;
+    }
+    showTabContent(allTabs[activeTabIndex]);
+  }
+
+  refreshTabsDisplay();
+}
+
+// Debounce function to delay history updates
+function debounce(func: Function, delay: number): Function {
+  let timeoutId: NodeJS.Timeout;
+  return function (this: any, ...args: any[]) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func.apply(this, args), delay);
+  };
+}
+
+// Debounced version of addToHistory
+const debouncedAddToHistory = debounce(addToHistory, 500);
+
+// Handle text input changes
+if (markdownInput) {
+  markdownInput.addEventListener('input', async () => {
+    const currentIndex = activeTabIndex;
+
+    if (currentIndex >= 0 && allTabs[currentIndex]) {
+      allTabs[currentIndex].content = markdownInput.value;
+      allTabs[currentIndex].hasUnsavedChanges = true;
+      refreshTabsDisplay();
+
+      // Add to history for undo/redo with debounce
+      debouncedAddToHistory(markdownInput.value);
+    }
+
+    // Update live preview
+    const parseResult = marked.parse(markdownInput.value);
+    if (typeof parseResult === 'string') {
+      markdownPreview.innerHTML = parseResult;
+    } else {
+      markdownPreview.innerHTML = await parseResult;
+    }
+    renderMathFormulas();
+    updateWordAndCharacterCount();
+  });
+
+  // Sync scrolling between input and preview
+  markdownInput.addEventListener('scroll', () => {
+    const inputScrollRatio = markdownInput.scrollTop / (markdownInput.scrollHeight - markdownInput.clientHeight || 1);
+    markdownPreview.scrollTop = inputScrollRatio * (markdownPreview.scrollHeight - markdownPreview.clientHeight || 1);
+  });
+}
+
+// Start with one empty tab
+createNewTab(null, "");
+
+// Undo/Redo functionality
+const MAX_HISTORY_LENGTH = 100;
+
+function addToHistory(content: string): void {
+  if (activeTabIndex < 0) return;
+
+  const currentTab = allTabs[activeTabIndex];
+
+  // Remove future history if we're not at the end
+  if (currentTab.historyIndex < currentTab.history.length - 1) {
+    currentTab.history = currentTab.history.slice(0, currentTab.historyIndex + 1);
+  }
+
+  // Add new state to history
+  currentTab.history.push(content);
+
+  // Limit history size
+  if (currentTab.history.length > MAX_HISTORY_LENGTH) {
+    currentTab.history.shift();
+  } else {
+    currentTab.historyIndex = currentTab.history.length - 1;
+  }
+
+  updateUndoRedoButtons();
+}
+
+function undo(): void {
+  if (activeTabIndex < 0) return;
+
+  const currentTab = allTabs[activeTabIndex];
+
+  if (currentTab.historyIndex > 0) {
+    currentTab.historyIndex--;
+    const previousContent = currentTab.history[currentTab.historyIndex];
+
+    if (markdownInput) {
+      markdownInput.value = previousContent;
+      currentTab.content = previousContent;
+      currentTab.hasUnsavedChanges = true;
+
+      // Update preview
+      const parseResult = marked.parse(previousContent);
+      if (typeof parseResult === 'string') {
+        if (markdownPreview) {
+          markdownPreview.innerHTML = parseResult;
+          renderMathFormulas();
+        }
+      } else {
+        parseResult.then(html => {
+          if (markdownPreview) {
+            markdownPreview.innerHTML = html;
+            renderMathFormulas();
+          }
+        });
+      }
+
+      updateWordAndCharacterCount();
+      updateUndoRedoButtons();
+    }
+  }
+}
+
+function redo(): void {
+  if (activeTabIndex < 0) return;
+
+  const currentTab = allTabs[activeTabIndex];
+
+  if (currentTab.historyIndex < currentTab.history.length - 1) {
+    currentTab.historyIndex++;
+    const nextContent = currentTab.history[currentTab.historyIndex];
+
+    if (markdownInput) {
+      markdownInput.value = nextContent;
+      currentTab.content = nextContent;
+      currentTab.hasUnsavedChanges = true;
+
+      // Update preview
+      const parseResult = marked.parse(nextContent);
+      if (typeof parseResult === 'string') {
+        if (markdownPreview) {
+          markdownPreview.innerHTML = parseResult;
+          renderMathFormulas();
+        }
+      } else {
+        parseResult.then(html => {
+          if (markdownPreview) {
+            markdownPreview.innerHTML = html;
+            renderMathFormulas();
+          }
+        });
+      }
+
+      updateWordAndCharacterCount();
+      updateUndoRedoButtons();
+    }
+  }
+}
+
+function updateUndoRedoButtons(): void {
+  const undoButton = document.getElementById('menu-undo') as HTMLElement;
+  const redoButton = document.getElementById('menu-redo') as HTMLElement;
+
+  if (activeTabIndex >= 0) {
+    const currentTab = allTabs[activeTabIndex];
+
+    // Update undo button
+    if (currentTab.historyIndex > 0) {
+      undoButton.removeAttribute('disabled');
+      undoButton.style.opacity = '1';
+      undoButton.style.cursor = 'pointer';
+    } else {
+      undoButton.setAttribute('disabled', 'true');
+      undoButton.style.opacity = '0.5';
+      undoButton.style.cursor = 'default';
+    }
+
+    // Update redo button
+    if (currentTab.historyIndex < currentTab.history.length - 1) {
+      redoButton.removeAttribute('disabled');
+      redoButton.style.opacity = '1';
+      redoButton.style.cursor = 'pointer';
+    } else {
+      redoButton.setAttribute('disabled', 'true');
+      redoButton.style.opacity = '0.5';
+      redoButton.style.cursor = 'default';
+    }
+  } else {
+    undoButton.setAttribute('disabled', 'true');
+    redoButton.setAttribute('disabled', 'true');
+    undoButton.style.opacity = '0.5';
+    redoButton.style.opacity = '0.5';
+    undoButton.style.cursor = 'default';
+    redoButton.style.cursor = 'default';
+  }
+}
+
+// Update character and word count display
+function updateWordAndCharacterCount(): void {
+  const charCountElement = document.getElementById('char-count');
+  const wordCountElement = document.getElementById('word-count');
+
+  if (!charCountElement || !wordCountElement || !markdownInput) return;
+
+  const text = markdownInput.value;
+  const characterCount = text.length;
+  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+
+  charCountElement.textContent = `${characterCount} characters`;
+  wordCountElement.textContent = `${wordCount} words`;
+}
+
+// File operations
+export async function saveFile(): Promise<void> {
+  try {
+    if (activeTabIndex < 0) return;
+
+    const currentTab = allTabs[activeTabIndex];
+
+    // If file doesn't have a path, ask user where to save
+    if (!currentTab.path) {
+      const selectedPath = await save({
+        filters: [{ name: "Markdown", extensions: ["md"] }],
+      });
+
+      if (!selectedPath) return;
+
+      currentTab.path = selectedPath as string;
+      currentTab.title = currentTab.path.split('/').pop() || currentTab.title;
+    }
+
+    await writeTextFile(currentTab.path, markdownInput.value);
+    currentTab.content = markdownInput.value;
+    currentTab.hasUnsavedChanges = false;
+
+    refreshTabsDisplay();
+
+    if (statusMsg) {
+      statusMsg.textContent = `Saved ${currentTab.path}`;
+    }
+  } catch (error) {
+    console.error("Error saving file:", error);
+    if (statusMsg) {
+      statusMsg.textContent = `Error saving file`;
+    }
+  }
+}
+
+export async function saveFileAs(): Promise<void> {
+  try {
+    if (activeTabIndex < 0) return;
+
+    const currentTab = allTabs[activeTabIndex];
+
+    const selectedPath = await save({
+      filters: [{ name: "Markdown", extensions: ["md"] }],
+    });
+
+    if (!selectedPath) return;
+
+    currentTab.path = selectedPath as string;
+    currentTab.title = currentTab.path.split('/').pop() || currentTab.title;
+
+    await writeTextFile(currentTab.path, markdownInput.value);
+    currentTab.content = markdownInput.value;
+    currentTab.hasUnsavedChanges = false;
+
+    refreshTabsDisplay();
+
+    if (statusMsg) {
+      statusMsg.textContent = `Saved as ${currentTab.path}`;
+    }
+  } catch (error) {
+    console.error("Error saving file as:", error);
+    if (statusMsg) {
+      statusMsg.textContent = `Error saving file as`;
+    }
+  }
+}
+
+export async function openFile(): Promise<void> {
+  try {
+    const selectedFiles = await open({
+      multiple: true,
+      filters: [{ name: "Markdown", extensions: ["md"] }],
+    });
+
+    if (!selectedFiles) return;
+
+    const filePaths = Array.isArray(selectedFiles) ? selectedFiles : [selectedFiles];
+
+    for (const filePath of filePaths) {
+      const fileContent = await readTextFile(filePath);
+      const fileName = filePath.split('/').pop() || filePath;
+      createNewTab(filePath, fileContent, fileName, true);
+    }
+
+    if (statusMsg) {
+      statusMsg.textContent = `Opened ${filePaths.length} file(s)`;
+    }
+  } catch (error) {
+    console.error("Error opening file:", error);
+    if (statusMsg) {
+      statusMsg.textContent = `Error opening file`;
+    }
+  }
+}
+
+export function newFile(): void {
+  createNewTab(null, "");
+  if (statusMsg) {
+    statusMsg.textContent = `New tab created`;
+  }
+}
+
+export async function exportHtml(): Promise<void> {
+  try {
+    if (activeTabIndex < 0) return;
+
+    const selectedPath = await save({
+      filters: [{ name: "HTML", extensions: ["html"] }],
+    });
+
+    if (!selectedPath) return;
+
+    const htmlContent = `<!doctype html><html><body>${await marked.parse(markdownInput.value)}</body></html>`;
+    await writeTextFile(selectedPath, htmlContent);
+
+    if (statusMsg) {
+      statusMsg.textContent = `Exported as HTML: ${selectedPath}`;
+    }
+  } catch (error) {
+    console.error("Error exporting HTML:", error);
+    if (statusMsg) {
+      statusMsg.textContent = `Error exporting HTML`;
+    }
+  }
+}
+
+export async function exportPdf(): Promise<void> {
+  try {
+    if (activeTabIndex < 0) return;
+
+    const selectedPath = await save({
+      filters: [{ name: "PDF", extensions: ["pdf"] }],
+    });
+
+    if (!selectedPath) return;
+
+    const htmlContent = await marked.parse(markdownInput.value);
+    const doc = new jsPDF();
+
+    // Create a temporary element to hold the HTML content
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+    tempDiv.style.fontSize = '12px';
+    tempDiv.style.lineHeight = '1.5';
+    tempDiv.style.padding = '20px';
+
+    // Use jsPDF's html method to add the content
+    await doc.html(tempDiv, {
+      callback: async function (doc) {
+        const pdfBlob = doc.output('blob');
+        const arrayBuffer = await pdfBlob.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        await writeFile(selectedPath, uint8Array);
+      },
+      x: 10,
+      y: 10,
+      width: 190,
+      windowWidth: 650
+    });
+
+    if (statusMsg) {
+      statusMsg.textContent = `Exported as PDF: ${selectedPath}`;
+    }
+  } catch (error) {
+    console.error("Error exporting PDF:", error);
+    if (statusMsg) {
+      statusMsg.textContent = `Error exporting PDF`;
+    }
+  }
+}
+
+export async function exitApp(): Promise<void> {
+  const hasUnsavedTabs = allTabs.some(tab => tab.hasUnsavedChanges);
+
+  if (hasUnsavedTabs) {
+    const userConfirmed = confirm("There are unsaved tabs. Exit anyway?");
+    if (!userConfirmed) return;
+  }
+
+  await exit(0);
+}
+
+// Theme switching
+const themeToggleButton = document.getElementById('toggle-theme') as HTMLButtonElement;
+const sunIcon = themeToggleButton?.querySelector('.fa-sun') as HTMLElement;
+const moonIcon = themeToggleButton?.querySelector('.fa-moon') as HTMLElement;
+
+function updateThemeIcon(): void {
+  const isDarkMode = document.body.classList.contains('dark');
+
+  if (isDarkMode) {
+    sunIcon.style.display = 'inline';
+    moonIcon.style.display = 'none';
+  } else {
+    sunIcon.style.display = 'none';
+    moonIcon.style.display = 'inline';
+  }
+}
+
+if (themeToggleButton) {
+  themeToggleButton.addEventListener('click', () => {
+    document.body.classList.toggle('dark');
+    document.body.classList.toggle('light');
+
+    const newTheme = document.body.classList.contains('dark') ? 'dark' : 'light';
+    localStorage.setItem('theme', newTheme);
+
+    updateThemeIcon();
+  });
+
+  // Load saved theme
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'dark') {
+    document.body.classList.add('dark');
+  } else {
+    document.body.classList.add('light');
+  }
+
+  updateThemeIcon();
+}
+
+// Math formula rendering
+function renderMathFormulas(): void {
+  if (markdownPreview) {
+    renderMathInElement(markdownPreview, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true }
+      ],
+      throwOnError: false,
+      ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+      ignoredClasses: ["no-math"]
+    });
+  }
+}
+
+// AI Model selection
+let selectedAiModel = "qwen3:0.6b";
+const modelSelectDropdown = document.getElementById('ollama-model-select') as HTMLSelectElement;
+
+async function loadAvailableModels(): Promise<void> {
+  try {
+    const response = await fetch("http://127.0.0.1:11434/api/tags");
+    const data = await response.json();
+
+    if (Array.isArray(data.models) && modelSelectDropdown) {
+      modelSelectDropdown.innerHTML = "";
+
+      data.models.forEach((model: any) => {
+        const option = document.createElement("option");
+        option.value = model.name;
+        option.textContent = model.name;
+        modelSelectDropdown.appendChild(option);
+      });
+
+      selectedAiModel = modelSelectDropdown.value;
+    }
+  } catch (error) {
+    if (modelSelectDropdown) {
+      modelSelectDropdown.innerHTML = `<option>Error loading models</option>`;
+    }
+  }
+}
+
+if (modelSelectDropdown) {
+  loadAvailableModels();
+
+  modelSelectDropdown.addEventListener("change", () => {
+    selectedAiModel = modelSelectDropdown.value;
+  });
+}
+
+// AI Chat streaming functionality
+async function streamAiResponse(userPrompt: string, chatHistoryContainer: HTMLDivElement): Promise<void> {
+  const response = await fetch("http://127.0.0.1:11434/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: selectedAiModel,
+      prompt: userPrompt,
+      stream: true
+    }),
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error(`AI API request failed: ${response.status} ${response.statusText}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  // Create AI message container
+  const aiMessageDiv = document.createElement("div");
+  aiMessageDiv.className = "msg ai";
+
+  // Create thinking section (expandable)
+  const thinkingDetails = document.createElement("details");
+  const thinkingSummary = document.createElement("summary");
+  thinkingSummary.textContent = "🤔 Model Thinking";
+
+  const thinkingContent = document.createElement("pre");
+  thinkingContent.className = "think-content";
+  thinkingContent.style.whiteSpace = "pre-wrap";
+  thinkingContent.style.margin = "0";
+
+  thinkingDetails.appendChild(thinkingSummary);
+  thinkingDetails.appendChild(thinkingContent);
+
+  // Create response content section
+  const responseContent = document.createElement("div");
+  responseContent.className = "ai-response";
+  responseContent.innerHTML = `<i class="fas fa-robot"></i> `;
+
+  // Create copy button
+  const copyButton = document.createElement("button");
+  copyButton.className = "copy-ai-response";
+  copyButton.innerHTML = `<i class="fas fa-copy"></i> Copy Response`;
+  copyButton.style.margin = "0.5em 0 0.5em 0";
+  copyButton.style.display = "block";
+  copyButton.style.background = "var(--accent)";
+  copyButton.style.color = "#fff";
+  copyButton.style.border = "none";
+  copyButton.style.borderRadius = "4px";
+  copyButton.style.padding = "0.3em 1em";
+  copyButton.style.cursor = "pointer";
+  copyButton.style.fontSize = "0.95em";
+
+  let visibleMarkdownContent = "";
+
+  copyButton.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(visibleMarkdownContent);
+      copyButton.textContent = "Copied!";
+      setTimeout(() => {
+        copyButton.innerHTML = `<i class="fas fa-copy"></i> Copy Response`;
+      }, 1200);
+    } catch {
+      copyButton.textContent = "Failed to copy";
+    }
+  };
+
+  aiMessageDiv.appendChild(thinkingDetails);
+  aiMessageDiv.appendChild(responseContent);
+  aiMessageDiv.appendChild(copyButton);
+  chatHistoryContainer.appendChild(aiMessageDiv);
+
+  // Streaming variables
+  let fullStreamText = "";
+  let isInsideThinkTags = false;
+  let thinkingText = "";
+
+  const updateDisplay = () => {
+    responseContent.innerHTML = `
+      <i class="fas fa-robot"></i>
+      <div class="ai-text">
+        ${marked.parse(visibleMarkdownContent)}
+      </div>
+    `;
+    thinkingContent.textContent = thinkingText;
+
+    renderMathInElement(responseContent);
+    renderMathInElement(thinkingContent);
+
+    chatHistoryContainer.scrollTop = chatHistoryContainer.scrollHeight;
+  };
+
+  const processStreamText = (newText: string) => {
+    fullStreamText += newText;
+
+    while (true) {
+      const thinkOpenIndex = fullStreamText.indexOf("<think>");
+      const thinkCloseIndex = fullStreamText.indexOf("</think>");
+
+      if (thinkOpenIndex === -1 && thinkCloseIndex === -1) {
+        if (isInsideThinkTags) {
+          thinkingText += fullStreamText;
+        } else {
+          visibleMarkdownContent += fullStreamText;
+        }
+        fullStreamText = "";
+        break;
+      }
+
+      let nextTagIndex = -1;
+      let isOpeningTag = false;
+
+      if (thinkOpenIndex !== -1 && thinkCloseIndex !== -1) {
+        isOpeningTag = thinkOpenIndex < thinkCloseIndex;
+        nextTagIndex = Math.min(thinkOpenIndex, thinkCloseIndex);
+      } else if (thinkOpenIndex !== -1) {
+        isOpeningTag = true;
+        nextTagIndex = thinkOpenIndex;
+      } else {
+        isOpeningTag = false;
+        nextTagIndex = thinkCloseIndex;
+      }
+
+      const textBeforeTag = fullStreamText.slice(0, nextTagIndex);
+
+      if (textBeforeTag) {
+        if (isInsideThinkTags) {
+          thinkingText += textBeforeTag;
+        } else {
+          visibleMarkdownContent += textBeforeTag;
+        }
+      }
+
+      if (isOpeningTag) {
+        fullStreamText = fullStreamText.slice(nextTagIndex + "<think>".length);
+        isInsideThinkTags = true;
+      } else {
+        fullStreamText = fullStreamText.slice(nextTagIndex + "</think>".length);
+        isInsideThinkTags = false;
+      }
+    }
+
+    updateDisplay();
+  };
+
+  updateDisplay();
+
+  // Process streaming response
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+
+      try {
+        const jsonData = JSON.parse(line);
+        if (typeof jsonData.response === "string") {
+          processStreamText(jsonData.response);
+        }
+      } catch (error) {
+        // Ignore parsing errors
+      }
+    }
+  }
+
+  // Process any remaining buffer
+  if (buffer.trim()) {
+    try {
+      const jsonData = JSON.parse(buffer);
+      if (typeof jsonData.response === "string") {
+        processStreamText(jsonData.response);
+      }
+    } catch {
+      processStreamText(buffer);
+    }
+  }
+
+  updateDisplay();
+}
+
+// Chat interface setup
+const sendChatButton = document.getElementById('send-chat') as HTMLButtonElement;
+const chatInputBox = document.getElementById('chat-box') as HTMLInputElement;
+const chatHistoryDiv = document.getElementById('chat-history') as HTMLDivElement;
+
+if (sendChatButton && chatInputBox && chatHistoryDiv) {
+  // Handle Enter key (Shift+Enter for newline, Enter to send)
+  chatInputBox.addEventListener('keydown', async function (event) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      sendChatButton.click();
+    }
+  });
+
+  sendChatButton.onclick = async function () {
+    const userMessage = chatInputBox.value.trim();
+    if (!userMessage) return;
+
+    // Add user message to chat
+    chatHistoryDiv.innerHTML += `
+      <div class="msg user">
+        <i class="fas fa-user"></i> ${userMessage.replace(/\n/g, "<br>")}
+      </div>
+    `;
+
+    chatInputBox.value = "";
+    chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
+
+    try {
+      await streamAiResponse(userMessage, chatHistoryDiv);
+    } catch (error) {
+      chatHistoryDiv.innerHTML += `
+        <div class="msg ai error">
+          <i class="fas fa-robot"></i> Error: ${error}
+        </div>
+      `;
+      console.error(error);
+    }
+
+    chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
+  };
+}
+
+// Edit markdown functionality
+const editMarkdownButton = document.getElementById('toolbar-edit') as HTMLButtonElement;
+
+if (editMarkdownButton) {
+  editMarkdownButton.addEventListener('click', async () => {
+    const currentMarkdown = markdownInput.value;
+
+    if (!currentMarkdown.trim()) {
+      alert('Please add some markdown content first!');
+      return;
+    }
+
+    const editPrompt = `Please edit and improve the following markdown content. Make it more professional, well-structured, and properly formatted. Return only the improved markdown content without any additional text or explanations:\n\n${currentMarkdown}`;
+
+    chatHistoryDiv.innerHTML += `
+      <div class="msg user">
+        <i class="fas fa-user"></i> Editing markdown...
+      </div>
+    `;
+    chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
+
+    try {
+      const response = await fetch("http://127.0.0.1:11434/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: selectedAiModel,
+          prompt: editPrompt,
+          stream: false
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI API request failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const improvedMarkdown = data.response;
+
+      if (improvedMarkdown) {
+        markdownInput.value = improvedMarkdown;
+        markdownPreview.innerHTML = await marked.parse(improvedMarkdown);
+        renderMathFormulas();
+
+        chatHistoryDiv.innerHTML += `
+          <div class="msg ai">
+            <i class="fas fa-robot"></i> Markdown edited successfully!
+          </div>
+        `;
+      } else {
+        chatHistoryDiv.innerHTML += `
+          <div class="msg ai error">
+            <i class="fas fa-robot"></i> Failed to edit markdown.
+          </div>
+        `;
+      }
+    } catch (error) {
+      chatHistoryDiv.innerHTML += `
+        <div class="msg ai error">
+          <i class="fas fa-robot"></i> Error editing markdown: ${error}
+        </div>
+      `;
+      console.error(error);
+    }
+
+    chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
+  });
+}
+
+// AI suggestion modal
+const suggestButton = document.getElementById('toolbar-suggest') as HTMLButtonElement;
+const suggestionModal = document.getElementById('ai-suggest-modal') as HTMLDivElement;
+const suggestionTextArea = document.getElementById('ai-suggest-text') as HTMLTextAreaElement;
+const suggestionPromptInput = document.getElementById('ai-suggest-prompt') as HTMLInputElement;
+const closeSuggestionModal = document.getElementById('close-suggest-modal') as HTMLSpanElement;
+const acceptSuggestionButton = document.getElementById('accept-suggest') as HTMLButtonElement;
+const rejectSuggestionButton = document.getElementById('reject-suggest') as HTMLButtonElement;
+
+let latestAiSuggestion = "";
+
+if (suggestButton && suggestionModal && suggestionTextArea && closeSuggestionModal &&
+  acceptSuggestionButton && rejectSuggestionButton && suggestionPromptInput) {
+
+  suggestButton.addEventListener('click', async () => {
+    const currentMarkdown = markdownInput.value;
+
+    if (!currentMarkdown.trim()) {
+      alert('Please add some markdown content first!');
+      return;
+    }
+
+    suggestionPromptInput.value = "";
+    suggestionTextArea.value = "";
+    suggestionModal.style.display = "flex";
+    suggestionPromptInput.focus();
+  });
+
+  // Generate suggestion when user presses Enter
+  suggestionPromptInput.addEventListener('keydown', async (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      await generateAiSuggestion();
+    }
+  });
+
+  // Generate suggestion when input loses focus (if not empty)
+  suggestionPromptInput.addEventListener('blur', async () => {
+    if (suggestionPromptInput.value.trim() && !suggestionTextArea.value) {
+      await generateAiSuggestion();
+    }
+  });
+
+  async function generateAiSuggestion(): Promise<void> {
+    const currentMarkdown = markdownInput.value;
+    const userPrompt = suggestionPromptInput.value.trim() || "Suggest improvements";
+
+    suggestionTextArea.value = "Thinking...";
+
+    const fullPrompt = `${userPrompt} for the following markdown. Return only the improved markdown, no explanations:\n\n${currentMarkdown}`;
+
+    try {
+      const response = await fetch("http://127.0.0.1:11434/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: selectedAiModel,
+          prompt: fullPrompt,
+          stream: false
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI API request failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      let suggestion = data.response || "";
+
+      // Remove thinking tags if present
+      suggestion = suggestion.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+
+      latestAiSuggestion = suggestion;
+      suggestionTextArea.value = suggestion || "No suggestion.";
+    } catch (error) {
+      suggestionTextArea.value = "Error: " + error;
+      latestAiSuggestion = "";
+    }
+  }
+
+  closeSuggestionModal.onclick = () => {
+    suggestionModal.style.display = "none";
+  };
+
+  rejectSuggestionButton.onclick = () => {
+    suggestionModal.style.display = "none";
+  };
+
+  acceptSuggestionButton.onclick = async () => {
+    if (latestAiSuggestion) {
+      markdownInput.value = latestAiSuggestion;
+      markdownPreview.innerHTML = await marked.parse(latestAiSuggestion);
+      renderMathFormulas();
+    }
+    suggestionModal.style.display = "none";
+  };
+
+  // Close modal when clicking outside
+  window.addEventListener('click', (event) => {
+    if (event.target === suggestionModal) {
+      suggestionModal.style.display = "none";
+    }
+  });
+}
+
+// Markdown formatting helper function
+function wrapSelectedText(beforeText: string, afterText: string, placeholderText = ""): void {
+  if (!markdownInput) return;
+
+  const startPosition = markdownInput.selectionStart;
+  const endPosition = markdownInput.selectionEnd;
+  const currentValue = markdownInput.value;
+  const selectedText = currentValue.slice(startPosition, endPosition) || placeholderText;
+
+  const newValue = currentValue.slice(0, startPosition) + beforeText + selectedText + afterText + currentValue.slice(endPosition);
+
+  markdownInput.value = newValue;
+  markdownInput.focus();
+
+  // Set cursor position inside the new markup
+  markdownInput.setSelectionRange(
+    startPosition + beforeText.length,
+    startPosition + beforeText.length + selectedText.length
+  );
+
+  markdownInput.dispatchEvent(new Event('input'));
+}
+
+// Formatting toolbar buttons
+const boldButton = document.getElementById('toolbar-bold');
+if (boldButton) {
+  boldButton.addEventListener('click', () => wrapSelectedText("**", "**", "bold text"));
+}
+
+const italicButton = document.getElementById('toolbar-italic');
+if (italicButton) {
+  italicButton.addEventListener('click', () => wrapSelectedText("_", "_", "italic text"));
+}
+
+const headingButton = document.getElementById('toolbar-heading');
+if (headingButton) {
+  headingButton.addEventListener('click', () => {
+    if (!markdownInput) return;
+
+    const cursorPosition = markdownInput.selectionStart;
+    const currentValue = markdownInput.value;
+    const lineStartPosition = currentValue.lastIndexOf('\n', cursorPosition - 1) + 1;
+    const newValue = currentValue.slice(0, lineStartPosition) + "# " + currentValue.slice(lineStartPosition);
+
+    markdownInput.value = newValue;
+    markdownInput.focus();
+    markdownInput.setSelectionRange(cursorPosition + 2, cursorPosition + 2);
+    markdownInput.dispatchEvent(new Event('input'));
+  });
+}
+
+const listButton = document.getElementById('toolbar-list');
+if (listButton) {
+  listButton.addEventListener('click', () => {
+    if (!markdownInput) return;
+
+    const cursorPosition = markdownInput.selectionStart;
+    const currentValue = markdownInput.value;
+    const lineStartPosition = currentValue.lastIndexOf('\n', cursorPosition - 1) + 1;
+    const newValue = currentValue.slice(0, lineStartPosition) + "- " + currentValue.slice(lineStartPosition);
+
+    markdownInput.value = newValue;
+    markdownInput.focus();
+    markdownInput.setSelectionRange(cursorPosition + 2, cursorPosition + 2);
+    markdownInput.dispatchEvent(new Event('input'));
+  });
+}
+
+const codeButton = document.getElementById('toolbar-code');
+if (codeButton) {
+  codeButton.addEventListener('click', () => wrapSelectedText("`", "`", "code"));
+}
+
+const quoteButton = document.getElementById('toolbar-quote');
+if (quoteButton) {
+  quoteButton.addEventListener('click', () => {
+    if (!markdownInput) return;
+
+    const cursorPosition = markdownInput.selectionStart;
+    const currentValue = markdownInput.value;
+    const lineStartPosition = currentValue.lastIndexOf('\n', cursorPosition - 1) + 1;
+    const newValue = currentValue.slice(0, lineStartPosition) + "> " + currentValue.slice(lineStartPosition);
+
+    markdownInput.value = newValue;
+    markdownInput.focus();
+    markdownInput.setSelectionRange(cursorPosition + 2, cursorPosition + 2);
+    markdownInput.dispatchEvent(new Event('input'));
+  });
+}
+
+const linkButton = document.getElementById('toolbar-link');
+if (linkButton) {
+  linkButton.addEventListener('click', () => wrapSelectedText("[", "](https://)", "link text"));
+}
+
+const imageButton = document.getElementById('toolbar-image');
+if (imageButton) {
+  imageButton.addEventListener('click', () => wrapSelectedText("![", "](https://)", "alt text"));
+}
+
+
+// Menu event handlers
+function setupMenuHandlers(): void {
+  document.getElementById('menu-new')?.addEventListener('click', newFile);
+  document.getElementById('menu-open')?.addEventListener('click', openFile);
+  document.getElementById('menu-save')?.addEventListener('click', saveFile);
+  document.getElementById('menu-save-as')?.addEventListener('click', saveFileAs);
+  document.getElementById('menu-export-html')?.addEventListener('click', exportHtml);
+  document.getElementById('menu-export-pdf')?.addEventListener('click', exportPdf);
+  document.getElementById('menu-exit')?.addEventListener('click', exitApp);
+
+  // Edit menu handlers
+  document.getElementById('menu-undo')?.addEventListener('click', undo);
+  document.getElementById('menu-redo')?.addEventListener('click', redo);
+}
+
+// Add tab button handler
+function setupAddTabButton(): void {
+  const addTabButton = document.getElementById('add-tab');
+  if (addTabButton) {
+    addTabButton.addEventListener('click', newFile);
+  }
+}
+
+// Panel resizing functionality
+function setupPanelResizing(): void {
+  const container = document.querySelector('.container') as HTMLElement;
+  const resizers = document.querySelectorAll('.resizer') as NodeListOf<HTMLElement>;
+  let isCurrentlyResizing = false;
+  let startMouseX: number;
+
+  resizers.forEach((resizer, resizerIndex) => {
+    resizer.addEventListener('mousedown', (event: MouseEvent) => {
+      isCurrentlyResizing = true;
+      resizer.classList.add('active');
+      startMouseX = event.clientX;
+
+      function handleMouseMove(moveEvent: MouseEvent): void {
+        if (!isCurrentlyResizing) return;
+
+        const deltaX = moveEvent.clientX - startMouseX;
+        const containerWidth = container.offsetWidth;
+        const currentColumns = getComputedStyle(container).gridTemplateColumns.split(' ');
+
+        if (resizerIndex === 0) {
+          // First resizer (between chat and editor)
+          const currentLeftWidth = parseFloat(currentColumns[0]);
+          const currentMiddleWidth = parseFloat(currentColumns[2]);
+
+          let newLeftWidth = currentLeftWidth + deltaX;
+          let newMiddleWidth = currentMiddleWidth - deltaX;
+
+          // Minimum width constraints
+          const minimumPanelWidth = 250;
+          const maximumLeftWidth = containerWidth - (2 * minimumPanelWidth) - 12; // 12px for resizers
+
+          newLeftWidth = Math.max(minimumPanelWidth, Math.min(maximumLeftWidth, newLeftWidth));
+          newMiddleWidth = Math.max(minimumPanelWidth, currentMiddleWidth - (newLeftWidth - currentLeftWidth));
+
+          container.style.gridTemplateColumns = `${newLeftWidth}px 6px ${newMiddleWidth}px 6px 1fr`;
+        } else {
+          // Second resizer (between editor and preview)
+          const currentMiddleWidth = parseFloat(currentColumns[2]);
+          const currentRightWidth = parseFloat(currentColumns[4]);
+
+          let newMiddleWidth = currentMiddleWidth + deltaX;
+          let newRightWidth = currentRightWidth - deltaX;
+
+          // Minimum width constraints
+          const minimumPanelWidth = 250;
+          const maximumMiddleWidth = containerWidth - (2 * minimumPanelWidth) - 12;
+
+          newMiddleWidth = Math.max(minimumPanelWidth, Math.min(maximumMiddleWidth, newMiddleWidth));
+          newRightWidth = Math.max(minimumPanelWidth, currentRightWidth - (newMiddleWidth - currentMiddleWidth));
+
+          container.style.gridTemplateColumns = `${currentColumns[0]} 6px ${newMiddleWidth}px 6px ${newRightWidth}px`;
+        }
+
+        startMouseX = moveEvent.clientX;
+      }
+
+      function handleMouseUp(): void {
+        isCurrentlyResizing = false;
+        resizer.classList.remove('active');
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      }
+
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      event.preventDefault(); // Prevent text selection
+    });
+  });
+}
+
+document.addEventListener('keydown', (event) => {
+  if (event.ctrlKey) {
+    if (event.key === 'z') {
+      undo();
+      event.preventDefault(); // Prevent default undo action
+    } else if (event.key === 'y') {
+      redo();
+      event.preventDefault(); // Prevent default redo action
+    }
+  }
+});
+
+// Initialize all event handlers when the page loads
+function initializeApplication(): void {
+  setupMenuHandlers();
+  setupAddTabButton();
+  setupPanelResizing();
+}
+
+// Run initialization when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeApplication);
+} else {
+  initializeApplication();
+}
