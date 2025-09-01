@@ -901,73 +901,11 @@ if (sendChatButton && chatInputBox && chatHistoryDiv) {
   };
 }
 
-// Edit markdown functionality
+// Removed edit markdown functionality to remove the option from the toolbar
 const editMarkdownButton = document.getElementById('toolbar-edit') as HTMLButtonElement;
-
 if (editMarkdownButton) {
-  editMarkdownButton.addEventListener('click', async () => {
-    const currentMarkdown = markdownInput.value;
-
-    if (!currentMarkdown.trim()) {
-      alert('Please add some markdown content first!');
-      return;
-    }
-
-    const editPrompt = `Please edit and improve the following markdown content. Make it more professional, well-structured, and properly formatted. Return only the improved markdown content without any additional text or explanations:\n\n${currentMarkdown}`;
-
-    chatHistoryDiv.innerHTML += `
-      <div class="msg user">
-        <i class="fas fa-user"></i> Editing markdown...
-      </div>
-    `;
-    chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
-
-    try {
-      const response = await fetch("http://127.0.0.1:11434/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: selectedAiModel,
-          prompt: editPrompt,
-          stream: false
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`AI API request failed: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const improvedMarkdown = data.response;
-
-      if (improvedMarkdown) {
-        markdownInput.value = improvedMarkdown;
-        markdownPreview.innerHTML = await marked.parse(improvedMarkdown);
-        renderMathFormulas();
-
-        chatHistoryDiv.innerHTML += `
-          <div class="msg ai">
-            <i class="fas fa-robot"></i> Markdown edited successfully!
-          </div>
-        `;
-      } else {
-        chatHistoryDiv.innerHTML += `
-          <div class="msg ai error">
-            <i class="fas fa-robot"></i> Failed to edit markdown.
-          </div>
-        `;
-      }
-    } catch (error) {
-      chatHistoryDiv.innerHTML += `
-        <div class="msg ai error">
-          <i class="fas fa-robot"></i> Error editing markdown: ${error}
-        </div>
-      `;
-      console.error(error);
-    }
-
-    chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
-  });
+  // Hide the edit markdown button from the toolbar
+  editMarkdownButton.style.display = 'none';
 }
 
 // AI suggestion modal
@@ -980,6 +918,8 @@ const acceptSuggestionButton = document.getElementById('accept-suggest') as HTML
 const rejectSuggestionButton = document.getElementById('reject-suggest') as HTMLButtonElement;
 
 let latestAiSuggestion = "";
+
+// Improved AI Suggestion modal functionality with loading indicators, better error handling, and improved prompt
 
 if (suggestButton && suggestionModal && suggestionTextArea && closeSuggestionModal &&
   acceptSuggestionButton && rejectSuggestionButton && suggestionPromptInput) {
@@ -1018,8 +958,12 @@ if (suggestButton && suggestionModal && suggestionTextArea && closeSuggestionMod
     const userPrompt = suggestionPromptInput.value.trim() || "Suggest improvements";
 
     suggestionTextArea.value = "Thinking...";
+    suggestionPromptInput.disabled = true;
+    acceptSuggestionButton.disabled = true;
+    rejectSuggestionButton.disabled = true;
+    suggestButton.disabled = true;
 
-    const fullPrompt = `${userPrompt} for the following markdown. Return only the improved markdown, no explanations:\n\n${currentMarkdown}`;
+    const fullPrompt = `Please provide detailed and professional improvements for the following markdown content. Return only the improved markdown content without any explanations or additional text:\n\n${currentMarkdown}\n\nUser prompt: ${userPrompt}`;
 
     try {
       const response = await fetch("http://127.0.0.1:11434/api/generate", {
@@ -1047,6 +991,11 @@ if (suggestButton && suggestionModal && suggestionTextArea && closeSuggestionMod
     } catch (error) {
       suggestionTextArea.value = "Error: " + error;
       latestAiSuggestion = "";
+    } finally {
+      suggestionPromptInput.disabled = false;
+      acceptSuggestionButton.disabled = false;
+      rejectSuggestionButton.disabled = false;
+      suggestButton.disabled = false;
     }
   }
 

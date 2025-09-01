@@ -140,6 +140,10 @@ body.dark {
   background: var(--panel-bg);
   color: var(--text);
   font-size: 1rem;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Container Layout */
