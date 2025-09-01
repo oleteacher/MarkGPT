@@ -106,6 +106,11 @@
     <span id="status-msg">Ready</span>
   </footer>
 
+  <!-- Floating Toolbar for Selected Text -->
+  <div id="selection-toolbar" class="selection-toolbar">
+    <button id="selection-edit-ai" title="Edit selected text with AI"><i class="fas fa-magic"></i></button>
+  </div>
+
   <div id="ai-suggest-modal" class="modal">
     <div class="modal-content">
       <span class="close" id="close-suggest-modal">&times;</span>
@@ -115,6 +120,21 @@
       <div class="modal-actions">
         <button id="accept-suggest" class="accept">Accept</button>
         <button id="reject-suggest" class="reject">Reject</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Selected Text AI Editing -->
+  <div id="selection-ai-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" id="close-selection-modal">&times;</span>
+      <h3>Edit Selected Text with AI</h3>
+      <p id="selected-text-preview"></p>
+      <input id="selection-ai-prompt" type="text" placeholder="Describe the edit you want (e.g. 'make it concise')" />
+      <textarea id="selection-ai-response" readonly></textarea>
+      <div class="modal-actions">
+        <button id="accept-selection" class="accept">Accept</button>
+        <button id="reject-selection" class="reject">Reject</button>
       </div>
     </div>
   </div>

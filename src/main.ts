@@ -41,6 +41,17 @@ const markdownPreview = document.getElementById('markdown-preview') as HTMLDivEl
 const tabsContainer = document.getElementById('tabs') as HTMLDivElement;
 const statusMsg = document.getElementById('status-msg') as HTMLSpanElement;
 
+// Selection toolbar and modal elements
+const selectionToolbar = document.getElementById('selection-toolbar') as HTMLDivElement;
+const selectionEditButton = document.getElementById('selection-edit-ai') as HTMLButtonElement;
+const selectionModal = document.getElementById('selection-ai-modal') as HTMLDivElement;
+const selectedTextPreview = document.getElementById('selected-text-preview') as HTMLParagraphElement;
+const selectionPromptInput = document.getElementById('selection-ai-prompt') as HTMLInputElement;
+const selectionResponseTextarea = document.getElementById('selection-ai-response') as HTMLTextAreaElement;
+const acceptSelectionButton = document.getElementById('accept-selection') as HTMLButtonElement;
+const rejectSelectionButton = document.getElementById('reject-selection') as HTMLButtonElement;
+const closeSelectionModal = document.getElementById('close-selection-modal') as HTMLSpanElement;
+
 // Validate essential UI elements exist
 if (!markdownInput || !markdownPreview) {
   console.error("Required editor or preview elements not found");
@@ -1020,6 +1031,238 @@ if (suggestButton && suggestionModal && suggestionTextArea && closeSuggestionMod
   window.addEventListener('click', (event) => {
     if (event.target === suggestionModal) {
       suggestionModal.style.display = "none";
+    }
+  });
+}
+
+// Selection toolbar and AI editing functionality
+let currentSelection = { start: 0, end: 0, text: '' };
+
+// Function to get text selection in textarea
+function getTextareaSelection(): { start: number; end: number; text: string } | null {
+  if (!markdownInput) return null;
+
+  const start = markdownInput.selectionStart;
+  const end = markdownInput.selectionEnd;
+  const text = markdownInput.value.slice(start, end);
+
+  if (start !== end && text.trim()) {
+    return { start, end, text };
+  }
+  return null;
+}
+
+// Function to position the toolbar near the selection
+function positionToolbar(selection: { start: number; end: number }) {
+  if (!markdownInput || !selectionToolbar) return;
+
+  const textareaRect = markdownInput.getBoundingClientRect();
+  const textMetrics = markdownInput.getBoundingClientRect();
+
+  // Get the position of the selection
+  const startPos = getCaretCoordinates(markdownInput, selection.start);
+  const endPos = getCaretCoordinates(markdownInput, selection.end);
+
+  // Position toolbar above the selection
+  const toolbarX = textareaRect.left + startPos.left;
+  const toolbarY = textareaRect.top + startPos.top - 40; // 40px above
+
+  selectionToolbar.style.left = `${toolbarX}px`;
+  selectionToolbar.style.top = `${toolbarY}px`;
+  selectionToolbar.style.display = 'flex';
+}
+
+// Helper function to get caret coordinates (simplified)
+function getCaretCoordinates(element: HTMLTextAreaElement, position: number) {
+  // Create a temporary div to measure text
+  const div = document.createElement('div');
+  const style = getComputedStyle(element);
+
+  // Copy styles
+  ['fontSize', 'fontFamily', 'lineHeight', 'padding', 'border', 'wordWrap', 'whiteSpace'].forEach(prop => {
+    (div.style as any)[prop] = style[prop as keyof CSSStyleDeclaration];
+  });
+
+  div.style.position = 'absolute';
+  div.style.visibility = 'hidden';
+  div.style.width = element.offsetWidth + 'px';
+  div.style.height = 'auto';
+
+  // Get text before cursor
+  const text = element.value.substring(0, position);
+  div.textContent = text;
+
+  document.body.appendChild(div);
+
+  const span = document.createElement('span');
+  span.textContent = element.value.substring(position) || '.';
+  div.appendChild(span);
+
+  const coordinates = {
+    left: span.offsetLeft,
+    top: span.offsetTop
+  };
+
+  document.body.removeChild(div);
+  return coordinates;
+}
+
+// Handle text selection
+if (markdownInput) {
+  markdownInput.addEventListener('mouseup', () => {
+    const selection = getTextareaSelection();
+    if (selection) {
+      currentSelection = selection;
+      positionToolbar(selection);
+    } else {
+      selectionToolbar.style.display = 'none';
+    }
+  });
+
+  markdownInput.addEventListener('keyup', (event) => {
+    // Handle arrow keys, etc.
+    if (event.key.includes('Arrow') || event.key === 'Escape') {
+      const selection = getTextareaSelection();
+      if (selection) {
+        currentSelection = selection;
+        positionToolbar(selection);
+      } else {
+        selectionToolbar.style.display = 'none';
+      }
+    }
+  });
+
+  // Hide toolbar when clicking outside
+  document.addEventListener('mousedown', (event) => {
+    if (!selectionToolbar.contains(event.target as Node) && event.target !== markdownInput) {
+      selectionToolbar.style.display = 'none';
+    }
+  });
+}
+
+// Handle toolbar button click
+if (selectionEditButton && selectionModal && selectedTextPreview) {
+  selectionEditButton.addEventListener('click', () => {
+    selectedTextPreview.textContent = `Selected text: "${currentSelection.text}"`;
+    selectionPromptInput.value = '';
+    selectionResponseTextarea.value = '';
+    selectionModal.style.display = 'flex';
+    selectionPromptInput.focus();
+  });
+}
+
+// Selection AI modal functionality
+if (selectionModal && selectionPromptInput && selectionResponseTextarea &&
+    acceptSelectionButton && rejectSelectionButton && closeSelectionModal) {
+
+  let latestSelectionSuggestion = '';
+
+  // Generate suggestion when user presses Enter
+  selectionPromptInput.addEventListener('keydown', async (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      await generateSelectionSuggestion();
+    }
+  });
+
+  // Generate suggestion when input loses focus (if not empty)
+  selectionPromptInput.addEventListener('blur', async () => {
+    if (selectionPromptInput.value.trim() && !selectionResponseTextarea.value) {
+      await generateSelectionSuggestion();
+    }
+  });
+
+  async function generateSelectionSuggestion(): Promise<void> {
+    const userPrompt = selectionPromptInput.value.trim() || "Improve this text";
+
+    selectionResponseTextarea.value = "Thinking...";
+    selectionPromptInput.disabled = true;
+    acceptSelectionButton.disabled = true;
+    rejectSelectionButton.disabled = true;
+
+    const fullPrompt = `Please improve the following selected text based on the user's request. Return only the improved text without any explanations or additional content:\n\nSelected text: "${currentSelection.text}"\n\nUser request: ${userPrompt}`;
+
+    try {
+      const response = await fetch("http://127.0.0.1:11434/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: selectedAiModel,
+          prompt: fullPrompt,
+          stream: false
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI API request failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      let suggestion = data.response || "";
+
+      // Remove thinking tags if present
+      suggestion = suggestion.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+
+      latestSelectionSuggestion = suggestion;
+      selectionResponseTextarea.value = suggestion || "No suggestion.";
+    } catch (error) {
+      selectionResponseTextarea.value = "Error: " + error;
+      latestSelectionSuggestion = "";
+    } finally {
+      selectionPromptInput.disabled = false;
+      acceptSelectionButton.disabled = false;
+      rejectSelectionButton.disabled = false;
+    }
+  }
+
+  closeSelectionModal.onclick = () => {
+    selectionModal.style.display = "none";
+  };
+
+  rejectSelectionButton.onclick = () => {
+    selectionModal.style.display = "none";
+  };
+
+  acceptSelectionButton.onclick = async () => {
+    if (latestSelectionSuggestion && markdownInput) {
+      // Replace selected text with AI suggestion
+      const currentValue = markdownInput.value;
+      const newValue = currentValue.slice(0, currentSelection.start) +
+                       latestSelectionSuggestion +
+                       currentValue.slice(currentSelection.end);
+
+      markdownInput.value = newValue;
+
+      // Update preview
+      const parseResult = marked.parse(newValue);
+      if (typeof parseResult === 'string') {
+        if (markdownPreview) {
+          markdownPreview.innerHTML = parseResult;
+          renderMathFormulas();
+        }
+      } else {
+        parseResult.then(html => {
+          if (markdownPreview) {
+            markdownPreview.innerHTML = html;
+            renderMathFormulas();
+          }
+        });
+      }
+
+      // Add to history
+      debouncedAddToHistory(newValue);
+      updateWordAndCharacterCount();
+
+      // Hide toolbar and modal
+      selectionToolbar.style.display = 'none';
+      selectionModal.style.display = "none";
+    }
+  };
+
+  // Close modal when clicking outside
+  window.addEventListener('click', (event) => {
+    if (event.target === selectionModal) {
+      selectionModal.style.display = "none";
     }
   });
 }
