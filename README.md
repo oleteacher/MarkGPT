@@ -18,6 +18,16 @@
 
 MarkGPT is a sleek, powerful desktop application built with [Tauri](https://tauri.app/) and vanilla TypeScript. It combines the simplicity of Markdown editing with the intelligence of AI, providing a seamless writing experience with live preview, AI chat assistance, and export capabilities.
 
+## 🚀 Quick Start
+
+### Prerequisites
+- Ollama and an AI model
+
+### Download for your platform:
+
+https://github.com/MarkGPT-Editor/MarkGPT/releases/tag/app-v0.1.0
+
+
 ## 🌟 Features
 
 - **✨ AI-Powered Writing**: Integrated AI chat for suggestions, edits, and content generation
@@ -31,15 +41,6 @@ MarkGPT is a sleek, powerful desktop application built with [Tauri](https://taur
 - **🎯 Smart AI Suggestions**: Edit selected text with AI prompts
 - **💾 File Management**: Open, save, and manage Markdown files
 - **⚡ Fast & Lightweight**: Built with Tauri for native performance
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Ollama and an AI model
-
-### Download for your platform:
-
-https://github.com/MarkGPT-Editor/MarkGPT/releases/tag/app-v0.1.0
 
 ### Installation
 
