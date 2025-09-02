@@ -850,6 +850,11 @@ body.dark {
   background: var(--selection);
 }
 
+.folder-item.selected {
+  background-color: var(--selection);
+  color: var(--accent);
+}
+
 .folder-item.folder {
   font-weight: 500;
 }
@@ -878,6 +883,10 @@ body.dark {
   justify-content: center;
   min-width: 32px;
   height: 32px;
+}
+
+.folder-controls button:first-child {
+  margin-left: 0;
 }
 
 .folder-controls button:hover {

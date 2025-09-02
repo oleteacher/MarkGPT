@@ -40,8 +40,8 @@ marked.use({
   ],
 });
 
-import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
-import { readDir } from "@tauri-apps/plugin-fs";
+import { open as openFolderDialog, message, ask } from "@tauri-apps/plugin-dialog";
+import { readDir, mkdir, exists } from "@tauri-apps/plugin-fs";
 
 // UI Elements
 const markdownInput = document.getElementById(
@@ -56,6 +56,12 @@ const statusMsg = document.getElementById("status-msg") as HTMLSpanElement;
 const openFolderButton = document.getElementById(
   "open-folder",
 ) as HTMLButtonElement;
+const newFileButton = document.getElementById(
+  "new-file",
+) as HTMLButtonElement;
+const newFolderButton = document.getElementById(
+  "new-folder",
+) as HTMLButtonElement;
 const folderTreeContainer = document.getElementById(
   "folder-tree",
 ) as HTMLDivElement;
@@ -67,6 +73,124 @@ const openFolderBigButton = document.getElementById(
 ) as HTMLButtonElement;
 
 let currentFolderPath: string | null = null;
+let selectedFolderPath: string | null = null;
+
+// Custom input dialog for Tauri (since prompt() is not available)
+async function customPrompt(title: string, placeholder: string = ""): Promise<string | null> {
+  return new Promise((resolve) => {
+    // Create modal overlay
+    const modal = document.createElement("div");
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    `;
+
+    // Create dialog content
+    const dialog = document.createElement("div");
+    dialog.style.cssText = `
+      background: var(--bg-primary, #ffffff);
+      border-radius: 8px;
+      padding: 20px;
+      min-width: 300px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    `;
+
+    const titleElement = document.createElement("h3");
+    titleElement.textContent = title;
+    titleElement.style.cssText = `
+      margin: 0 0 15px 0;
+      color: var(--text-primary, #333333);
+      font-size: 16px;
+    `;
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = placeholder;
+    input.style.cssText = `
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border, #cccccc);
+      border-radius: 4px;
+      font-size: 14px;
+      margin-bottom: 15px;
+      box-sizing: border-box;
+    `;
+
+    const buttonContainer = document.createElement("div");
+    buttonContainer.style.cssText = `
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    `;
+
+    const cancelButton = document.createElement("button");
+    cancelButton.textContent = "Cancel";
+    cancelButton.style.cssText = `
+      padding: 8px 16px;
+      border: 1px solid var(--border, #cccccc);
+      background: var(--bg-secondary, #f5f5f5);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    `;
+
+    const okButton = document.createElement("button");
+    okButton.textContent = "OK";
+    okButton.style.cssText = `
+      padding: 8px 16px;
+      border: none;
+      background: var(--accent, #007acc);
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    `;
+
+    // Event handlers
+    const closeModal = () => {
+      document.body.removeChild(modal);
+    };
+
+    cancelButton.onclick = () => {
+      resolve(null);
+      closeModal();
+    };
+
+    okButton.onclick = () => {
+      const value = input.value.trim();
+      resolve(value || null);
+      closeModal();
+    };
+
+    input.onkeydown = (event) => {
+      if (event.key === "Enter") {
+        okButton.click();
+      } else if (event.key === "Escape") {
+        cancelButton.click();
+      }
+    };
+
+    // Focus input when modal opens
+    setTimeout(() => input.focus(), 100);
+
+    // Assemble dialog
+    buttonContainer.appendChild(cancelButton);
+    buttonContainer.appendChild(okButton);
+    dialog.appendChild(titleElement);
+    dialog.appendChild(input);
+    dialog.appendChild(buttonContainer);
+    modal.appendChild(dialog);
+    document.body.appendChild(modal);
+  });
+}
 
 // Function to toggle big open folder button visibility
 function toggleBigOpenFolderButton() {
@@ -117,6 +241,36 @@ async function createFolderTree(path: string, container: HTMLDivElement) {
   container.innerHTML = ""; // Clear existing content
 
   try {
+    // Add root folder item if this is the root folder
+    if (path === currentFolderPath) {
+      const rootItem = document.createElement("div");
+      rootItem.className = "folder-item folder root-folder";
+
+      // Get folder name from path
+      const folderName = path.split("/").pop() || path;
+      rootItem.innerHTML = `<i class="fas fa-folder"></i> ${folderName}`;
+
+      // Check if root folder is currently selected
+      if (selectedFolderPath === currentFolderPath) {
+        rootItem.classList.add("selected");
+      }
+
+      rootItem.addEventListener("click", (event) => {
+        event.stopPropagation();
+
+        // Clear previous selection
+        document.querySelectorAll(".folder-item.selected").forEach(el => {
+          el.classList.remove("selected");
+        });
+
+        // Select root folder
+        rootItem.classList.add("selected");
+        selectedFolderPath = currentFolderPath;
+      });
+
+      container.appendChild(rootItem);
+    }
+
     const entries = await readDir(path);
 
     for (const entry of entries) {
@@ -132,15 +286,39 @@ async function createFolderTree(path: string, container: HTMLDivElement) {
         subContainer.className = "folder-subtree";
         subContainer.style.display = "none";
 
+        const fullPath = `${path}/${entry.name}`;
+
+        // Check if this folder is currently selected
+        if (selectedFolderPath === fullPath) {
+          item.classList.add("selected");
+        }
+
         item.addEventListener("click", async (event) => {
           event.stopPropagation(); // Prevent event bubbling
 
+          // Update selection
+          const wasSelected = item.classList.contains("selected");
+
+          // Clear previous selection
+          document.querySelectorAll(".folder-item.selected").forEach(el => {
+            el.classList.remove("selected");
+          });
+
+          if (!wasSelected) {
+            // Select this folder
+            item.classList.add("selected");
+            selectedFolderPath = fullPath;
+          } else {
+            // Deselect - use root folder
+            selectedFolderPath = currentFolderPath;
+          }
+
+          // Toggle expansion
           if (subContainer.style.display === "none") {
             subContainer.style.display = "block";
             item.innerHTML = `<i class="fas fa-folder-open"></i> ${entry.name}`;
             // Load children if not already loaded
             if (subContainer.children.length === 0) {
-              const fullPath = `${path}/${entry.name}`;
               console.log("Loading folder:", fullPath);
               await createFolderTree(fullPath, subContainer);
             }
@@ -228,6 +406,129 @@ async function createFolderTree(path: string, container: HTMLDivElement) {
     console.error("Error reading directory:", err);
     if (statusMsg) statusMsg.textContent = `Error reading directory`;
   }
+}
+
+// Function to create a new file
+async function createNewFile(): Promise<void> {
+  const targetPath = selectedFolderPath || currentFolderPath;
+  if (!targetPath) {
+    if (statusMsg) statusMsg.textContent = "Please open a folder first";
+    return;
+  }
+
+  try {
+    const fileName = await customPrompt("Create New File", "Enter file name (with extension)");
+    if (!fileName || !fileName.trim()) return;
+
+    const trimmedFileName = fileName.trim();
+    const filePath = `${targetPath}/${trimmedFileName}`;
+
+    // Check if file already exists
+    const { exists } = await import("@tauri-apps/plugin-fs");
+    const fileExists = await exists(filePath);
+    if (fileExists) {
+      if (statusMsg) statusMsg.textContent = `File "${trimmedFileName}" already exists`;
+      return;
+    }
+
+    // Create empty file using Tauri FS
+    const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+    await writeTextFile(filePath, "");
+
+    // Refresh folder tree
+    if (folderTreeContainer) {
+      await createFolderTree(targetPath, folderTreeContainer);
+    }
+
+    if (statusMsg) statusMsg.textContent = `Created file: ${trimmedFileName}`;
+  } catch (error) {
+    console.error("Error creating file:", error);
+
+    // Check for specific error types
+    if (error instanceof Error) {
+      const errorMessage = error.message.toLowerCase();
+
+      if (errorMessage.includes("permission") || errorMessage.includes("access")) {
+        if (statusMsg) statusMsg.textContent = "Permission denied: Cannot create file in this location";
+      } else if (errorMessage.includes("forbidden") || errorMessage.includes("restricted")) {
+        if (statusMsg) statusMsg.textContent = "Access forbidden: This path is restricted";
+      } else if (errorMessage.includes("not found") || errorMessage.includes("no such file")) {
+        if (statusMsg) statusMsg.textContent = "Path not found: Please check the folder path";
+      } else if (errorMessage.includes("already exists")) {
+        if (statusMsg) statusMsg.textContent = "File already exists";
+      } else {
+        if (statusMsg) statusMsg.textContent = `Error creating file: ${error.message}`;
+      }
+    } else {
+      if (statusMsg) statusMsg.textContent = "Error creating file";
+    }
+  }
+}
+
+// Function to create a new folder
+async function createNewFolder(): Promise<void> {
+  const targetPath = selectedFolderPath || currentFolderPath;
+  if (!targetPath) {
+    if (statusMsg) statusMsg.textContent = "Please open a folder first";
+    return;
+  }
+
+  try {
+    const folderName = await customPrompt("Create New Folder", "Enter folder name");
+    if (!folderName || !folderName.trim()) return;
+
+    const folderPath = `${targetPath}/${folderName.trim()}`;
+
+    // Check if folder already exists
+    const { exists } = await import("@tauri-apps/plugin-fs");
+    const folderExists = await exists(folderPath);
+    if (folderExists) {
+      if (statusMsg) statusMsg.textContent = `Folder "${folderName}" already exists`;
+      return;
+    }
+
+    // Create folder using Tauri FS
+    const { mkdir } = await import("@tauri-apps/plugin-fs");
+    await mkdir(folderPath, { recursive: true });
+
+    // Refresh folder tree
+    if (folderTreeContainer) {
+      await createFolderTree(targetPath, folderTreeContainer);
+    }
+
+    if (statusMsg) statusMsg.textContent = `Created folder: ${folderName}`;
+  } catch (error) {
+    console.error("Error creating folder:", error);
+
+    // Check for specific error types
+    if (error instanceof Error) {
+      const errorMessage = error.message.toLowerCase();
+
+      if (errorMessage.includes("permission") || errorMessage.includes("access")) {
+        if (statusMsg) statusMsg.textContent = "Permission denied: Cannot create folder in this location";
+      } else if (errorMessage.includes("forbidden") || errorMessage.includes("restricted")) {
+        if (statusMsg) statusMsg.textContent = "Access forbidden: This path is restricted";
+      } else if (errorMessage.includes("not found") || errorMessage.includes("no such file")) {
+        if (statusMsg) statusMsg.textContent = "Path not found: Please check the folder path";
+      } else if (errorMessage.includes("already exists")) {
+        if (statusMsg) statusMsg.textContent = "Folder already exists";
+      } else {
+        if (statusMsg) statusMsg.textContent = `Error creating folder: ${error.message}`;
+      }
+    } else {
+      if (statusMsg) statusMsg.textContent = "Error creating folder";
+    }
+  }
+}
+
+// New file button event listener
+if (newFileButton) {
+  newFileButton.addEventListener("click", createNewFile);
+}
+
+// New folder button event listener
+if (newFolderButton) {
+  newFolderButton.addEventListener("click", createNewFolder);
 }
 
 // Open folder dialog and load folder tree
