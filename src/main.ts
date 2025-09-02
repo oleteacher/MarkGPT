@@ -8,6 +8,11 @@ import { writeTextFile, readTextFile, writeFile } from "@tauri-apps/plugin-fs";
 import { exit } from "@tauri-apps/plugin-process";
 import renderMathInElement from "katex/contrib/auto-render";
 import jsPDF from "jspdf";
+import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
+import { readDir, exists, mkdir } from "@tauri-apps/plugin-fs";
+
+
+
 
 // Configure marked with syntax highlighting
 marked.use({
@@ -39,9 +44,6 @@ marked.use({
     },
   ],
 });
-
-import { open as openFolderDialog, message, ask } from "@tauri-apps/plugin-dialog";
-import { readDir, mkdir, exists } from "@tauri-apps/plugin-fs";
 
 // UI Elements
 const markdownInput = document.getElementById(
@@ -237,8 +239,18 @@ function isTextFile(fileName: string): boolean {
 }
 
 // Function to create folder tree HTML recursively
-async function createFolderTree(path: string, container: HTMLDivElement) {
+async function createFolderTree(path: string, container: HTMLDivElement, depth: number = 0) {
+  const MAX_DEPTH = 10; // Prevent infinite recursion
   container.innerHTML = ""; // Clear existing content
+
+  // Prevent excessive recursion
+  if (depth > MAX_DEPTH) {
+    const errorItem = document.createElement("div");
+    errorItem.className = "folder-item error";
+    errorItem.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Directory too deep`;
+    container.appendChild(errorItem);
+    return;
+  }
 
   try {
     // Add root folder item if this is the root folder
@@ -320,7 +332,14 @@ async function createFolderTree(path: string, container: HTMLDivElement) {
             // Load children if not already loaded
             if (subContainer.children.length === 0) {
               console.log("Loading folder:", fullPath);
-              await createFolderTree(fullPath, subContainer);
+              try {
+                await createFolderTree(fullPath, subContainer, depth + 1);
+              } catch (subErr) {
+                console.error("Error loading subdirectory:", subErr);
+                // Show error in subdirectory
+                subContainer.innerHTML = `<div class="folder-item error"><i class="fas fa-exclamation-triangle"></i> Error loading folder</div>`;
+                subContainer.style.display = "block";
+              }
             }
           } else {
             subContainer.style.display = "none";
@@ -394,8 +413,21 @@ async function createFolderTree(path: string, container: HTMLDivElement) {
             }
           } catch (err) {
             console.error("Error reading file:", err);
-            if (statusMsg)
-              statusMsg.textContent = `Error reading file: ${entry.name}`;
+            // Provide more specific error messages
+            if (err instanceof Error) {
+              const errorMessage = err.message.toLowerCase();
+              if (errorMessage.includes("permission") || errorMessage.includes("access")) {
+                if (statusMsg) statusMsg.textContent = `Permission denied: ${entry.name}`;
+              } else if (errorMessage.includes("not found") || errorMessage.includes("no such file")) {
+                if (statusMsg) statusMsg.textContent = `File not found: ${entry.name}`;
+              } else if (errorMessage.includes("is a directory")) {
+                if (statusMsg) statusMsg.textContent = `Cannot open directory as file: ${entry.name}`;
+              } else {
+                if (statusMsg) statusMsg.textContent = `Error reading file: ${entry.name} (${err.message})`;
+              }
+            } else {
+              if (statusMsg) statusMsg.textContent = `Error reading file: ${entry.name}`;
+            }
           }
         });
 
@@ -404,7 +436,32 @@ async function createFolderTree(path: string, container: HTMLDivElement) {
     }
   } catch (err) {
     console.error("Error reading directory:", err);
-    if (statusMsg) statusMsg.textContent = `Error reading directory`;
+
+    // Create error item to show in the tree
+    const errorItem = document.createElement("div");
+    errorItem.className = "folder-item error";
+    errorItem.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Error reading directory`;
+
+    // Provide more specific error messages
+    if (err instanceof Error) {
+      const errorMessage = err.message.toLowerCase();
+      if (errorMessage.includes("permission") || errorMessage.includes("access")) {
+        errorItem.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Permission denied`;
+        if (statusMsg) statusMsg.textContent = "Permission denied: Cannot access this directory";
+      } else if (errorMessage.includes("not found") || errorMessage.includes("no such file")) {
+        errorItem.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Directory not found`;
+        if (statusMsg) statusMsg.textContent = "Directory not found";
+      } else if (errorMessage.includes("network") || errorMessage.includes("connection")) {
+        errorItem.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Network error`;
+        if (statusMsg) statusMsg.textContent = "Network error: Cannot access directory";
+      } else {
+        if (statusMsg) statusMsg.textContent = `Error reading directory: ${err.message}`;
+      }
+    } else {
+      if (statusMsg) statusMsg.textContent = "Error reading directory";
+    }
+
+    container.appendChild(errorItem);
   }
 }
 
@@ -424,7 +481,6 @@ async function createNewFile(): Promise<void> {
     const filePath = `${targetPath}/${trimmedFileName}`;
 
     // Check if file already exists
-    const { exists } = await import("@tauri-apps/plugin-fs");
     const fileExists = await exists(filePath);
     if (fileExists) {
       if (statusMsg) statusMsg.textContent = `File "${trimmedFileName}" already exists`;
@@ -432,31 +488,57 @@ async function createNewFile(): Promise<void> {
     }
 
     // Create empty file using Tauri FS
-    const { writeTextFile } = await import("@tauri-apps/plugin-fs");
     await writeTextFile(filePath, "");
 
-    // Refresh folder tree
-    if (folderTreeContainer) {
-      await createFolderTree(targetPath, folderTreeContainer);
+    // Refresh folder tree from root folder to ensure full update
+    if (folderTreeContainer && currentFolderPath) {
+      const previousSelected = selectedFolderPath;
+      await createFolderTree(currentFolderPath, folderTreeContainer, 0);
+      // Restore selection if possible
+      if (previousSelected) {
+        selectedFolderPath = previousSelected;
+        // Optionally, re-select the folder item in the tree
+        const selectedElements = folderTreeContainer.querySelectorAll(".folder-item.selected");
+        selectedElements.forEach(el => el.classList.remove("selected"));
+        const newSelected = Array.from(folderTreeContainer.querySelectorAll(".folder-item")).find(el => {
+          return el.textContent?.includes(previousSelected.split("/").pop() || "") && el.classList.contains("folder");
+        });
+        if (newSelected) {
+          newSelected.classList.add("selected");
+        }
+      }
     }
 
     if (statusMsg) statusMsg.textContent = `Created file: ${trimmedFileName}`;
   } catch (error) {
     console.error("Error creating file:", error);
 
-    // Check for specific error types
+    // Check for specific error types with more precise matching
     if (error instanceof Error) {
       const errorMessage = error.message.toLowerCase();
 
-      if (errorMessage.includes("permission") || errorMessage.includes("access")) {
+      // Check for actual permission errors first
+      if (errorMessage.includes("permission denied") || errorMessage.includes("access denied")) {
         if (statusMsg) statusMsg.textContent = "Permission denied: Cannot create file in this location";
-      } else if (errorMessage.includes("forbidden") || errorMessage.includes("restricted")) {
-        if (statusMsg) statusMsg.textContent = "Access forbidden: This path is restricted";
-      } else if (errorMessage.includes("not found") || errorMessage.includes("no such file")) {
+      }
+      // Check for path not found errors
+      else if (errorMessage.includes("no such file") || errorMessage.includes("path not found")) {
         if (statusMsg) statusMsg.textContent = "Path not found: Please check the folder path";
-      } else if (errorMessage.includes("already exists")) {
+      }
+      // Check for file already exists
+      else if (errorMessage.includes("already exists") || errorMessage.includes("file exists")) {
         if (statusMsg) statusMsg.textContent = "File already exists";
-      } else {
+      }
+      // Handle Tauri-specific "forbidden path" errors differently
+      else if (errorMessage.includes("forbidden path")) {
+        if (statusMsg) statusMsg.textContent = "Invalid path: File name contains invalid characters or format";
+      }
+      // Handle other forbidden/restricted errors
+      else if (errorMessage.includes("forbidden") || errorMessage.includes("restricted")) {
+        if (statusMsg) statusMsg.textContent = "Access forbidden: This path is restricted";
+      }
+      // Generic error with more details
+      else {
         if (statusMsg) statusMsg.textContent = `Error creating file: ${error.message}`;
       }
     } else {
@@ -480,7 +562,6 @@ async function createNewFolder(): Promise<void> {
     const folderPath = `${targetPath}/${folderName.trim()}`;
 
     // Check if folder already exists
-    const { exists } = await import("@tauri-apps/plugin-fs");
     const folderExists = await exists(folderPath);
     if (folderExists) {
       if (statusMsg) statusMsg.textContent = `Folder "${folderName}" already exists`;
@@ -488,31 +569,57 @@ async function createNewFolder(): Promise<void> {
     }
 
     // Create folder using Tauri FS
-    const { mkdir } = await import("@tauri-apps/plugin-fs");
     await mkdir(folderPath, { recursive: true });
 
-    // Refresh folder tree
-    if (folderTreeContainer) {
-      await createFolderTree(targetPath, folderTreeContainer);
+    // Refresh folder tree from root folder to ensure full update
+    if (folderTreeContainer && currentFolderPath) {
+      const previousSelected = selectedFolderPath;
+      await createFolderTree(currentFolderPath, folderTreeContainer, 0);
+      // Restore selection if possible
+      if (previousSelected) {
+        selectedFolderPath = previousSelected;
+        // Optionally, re-select the folder item in the tree
+        const selectedElements = folderTreeContainer.querySelectorAll(".folder-item.selected");
+        selectedElements.forEach(el => el.classList.remove("selected"));
+        const newSelected = Array.from(folderTreeContainer.querySelectorAll(".folder-item")).find(el => {
+          return el.textContent?.includes(previousSelected.split("/").pop() || "") && el.classList.contains("folder");
+        });
+        if (newSelected) {
+          newSelected.classList.add("selected");
+        }
+      }
     }
 
     if (statusMsg) statusMsg.textContent = `Created folder: ${folderName}`;
   } catch (error) {
     console.error("Error creating folder:", error);
 
-    // Check for specific error types
+    // Check for specific error types with more precise matching
     if (error instanceof Error) {
       const errorMessage = error.message.toLowerCase();
 
-      if (errorMessage.includes("permission") || errorMessage.includes("access")) {
+      // Check for actual permission errors first
+      if (errorMessage.includes("permission denied") || errorMessage.includes("access denied")) {
         if (statusMsg) statusMsg.textContent = "Permission denied: Cannot create folder in this location";
-      } else if (errorMessage.includes("forbidden") || errorMessage.includes("restricted")) {
-        if (statusMsg) statusMsg.textContent = "Access forbidden: This path is restricted";
-      } else if (errorMessage.includes("not found") || errorMessage.includes("no such file")) {
+      }
+      // Check for path not found errors
+      else if (errorMessage.includes("no such file") || errorMessage.includes("path not found")) {
         if (statusMsg) statusMsg.textContent = "Path not found: Please check the folder path";
-      } else if (errorMessage.includes("already exists")) {
+      }
+      // Check for folder already exists
+      else if (errorMessage.includes("already exists") || errorMessage.includes("file exists")) {
         if (statusMsg) statusMsg.textContent = "Folder already exists";
-      } else {
+      }
+      // Handle Tauri-specific "forbidden path" errors differently
+      else if (errorMessage.includes("forbidden path")) {
+        if (statusMsg) statusMsg.textContent = "Invalid path: Folder name contains invalid characters or format";
+      }
+      // Handle other forbidden/restricted errors
+      else if (errorMessage.includes("forbidden") || errorMessage.includes("restricted")) {
+        if (statusMsg) statusMsg.textContent = "Access forbidden: This path is restricted";
+      }
+      // Generic error with more details
+      else {
         if (statusMsg) statusMsg.textContent = `Error creating folder: ${error.message}`;
       }
     } else {
@@ -544,7 +651,7 @@ if (openFolderButton) {
       if (selectedFolder && typeof selectedFolder === "string") {
         currentFolderPath = selectedFolder;
         if (folderTreeContainer) {
-          await createFolderTree(currentFolderPath, folderTreeContainer);
+          await createFolderTree(currentFolderPath, folderTreeContainer, 0);
           if (statusMsg)
             statusMsg.textContent = `Opened folder: ${currentFolderPath}`;
         }
@@ -570,7 +677,7 @@ if (openFolderBigButton) {
       if (selectedFolder && typeof selectedFolder === "string") {
         currentFolderPath = selectedFolder;
         if (folderTreeContainer) {
-          await createFolderTree(currentFolderPath, folderTreeContainer);
+          await createFolderTree(currentFolderPath, folderTreeContainer, 0);
           if (statusMsg)
             statusMsg.textContent = `Opened folder: ${currentFolderPath}`;
         }

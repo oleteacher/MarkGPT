@@ -20,6 +20,35 @@
     "fs:allow-app-read",
     "fs:allow-app-read-recursive",
     "fs:allow-app-write-recursive",
-    "process:default"
+    "fs:allow-data-write-recursive",
+    "process:default",
+    "fs:allow-desktop-read-recursive",
+    "fs:allow-desktop-meta-recursive",
+    "fs:allow-resource-read-recursive",
+    "fs:allow-resource-meta-recursive",
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [{ "path": "/**" }]
+    },
+    {
+      "identifier": "fs:allow-app-write-recursive",
+      "allow": [{ "path": "/**" }]
+    },
+    {
+      "identifier": "fs:allow-app-write",
+      "allow": [{ "path": "/**" }]
+    },
+    {
+      "identifier": "fs:allow-app-read",
+      "allow": [{ "path": "/**" }]
+    },
+    {
+      "identifier": "fs:allow-app-read-recursive",
+      "allow": [{ "path": "/**" }]
+    },
+    {
+      "identifier": "fs:default",
+      "allow": [{ "path": "/**" }]
+    }
   ]
 }

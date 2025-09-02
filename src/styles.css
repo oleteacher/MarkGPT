@@ -863,6 +863,20 @@ body.dark {
   padding-left: 1rem;
 }
 
+.folder-item.error {
+  color: var(--error);
+  cursor: default;
+  font-style: italic;
+}
+
+.folder-item.error:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.folder-item.error i {
+  color: var(--error);
+}
+
 .folder-subtree {
   margin-left: 1rem;
   border-left: 1px solid var(--border);
