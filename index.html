@@ -1,150 +1,203 @@
 <!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <title>Beautiful AI + Markdown App</title>
+  </head>
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="/src/styles.css" />
-  <title>Beautiful AI + Markdown App</title>
-</head>
-
-<body>
-  <!-- Top Menu Bar -->
-  <header class="menu-bar">
-    <div class="menu-group">
-      <div class="menu-item">
-        <span>File</span>
-        <div class="dropdown-menu">
-          <div class="dropdown-item" id="menu-new"><i class="fas fa-file"></i> New</div>
-          <div class="dropdown-item" id="menu-open"><i class="fas fa-folder-open"></i> Open...</div>
-          <div class="dropdown-item" id="menu-save"><i class="fas fa-save"></i> Save</div>
-          <div class="dropdown-item" id="menu-save-as"><i class="fas fa-file-export"></i> Save As...</div>
-          <div class="dropdown-divider"></div>
-          <div class="dropdown-item" id="menu-export-html"><i class="fas fa-code"></i> Export as HTML</div>
-          <div class="dropdown-item" id="menu-export-pdf"><i class="fas fa-file-pdf"></i> Export as PDF</div>
-          <div class="dropdown-divider"></div>
-          <div class="dropdown-item" id="menu-exit"><i class="fas fa-sign-out-alt"></i> Exit</div>
-        </div>
-      </div>
-      <div class="menu-item">
-        <span>Edit</span>
-        <div class="dropdown-menu">
-          <div class="dropdown-item" id="menu-undo" disabled><i class="fas fa-undo"></i> Undo</div>
-          <div class="dropdown-item" id="menu-redo" disabled><i class="fas fa-redo"></i> Redo</div>
-        </div>
-      </div>
-    </div>
-    <div class="menu-item toolbar">
-      <button title="Bold" id="toolbar-bold"><i class="fas fa-bold"></i></button>
-      <button title="Italic" id="toolbar-italic"><i class="fas fa-italic"></i></button>
-      <button title="Heading" id="toolbar-heading"><i class="fas fa-heading"></i></button>
-      <button title="List" id="toolbar-list"><i class="fas fa-list-ul"></i></button>
-      <button title="Code" id="toolbar-code"><i class="fas fa-code"></i></button>
-      <button title="Quote" id="toolbar-quote"><i class="fas fa-quote-right"></i></button>
-      <button title="Edit Markdown" id="toolbar-edit"><i class="fas fa-edit"></i></button>
-      <button title="Link" id="toolbar-link"><i class="fas fa-link"></i></button>
-      <button title="Image" id="toolbar-image"><i class="fas fa-image"></i></button>
-
-    </div>
-    <div class="theme-toggle">
-      <select id="ollama-model-select" title="Select AI Model"></select>
-      <button id="toggle-theme" title="Toggle theme">
-        <i class="fas fa-sun"></i>
-        <i class="fas fa-moon"></i>
-      </button>
-    </div>
-  </header>
-
-  <main class="container">
-    <!-- Folder Explorer Panel -->
-    <section class="panel panel-folder">
-      <div class="panel-header">
-        <i class="fas fa-folder"></i>
-        <span>Explorer</span>
-        <div class="folder-controls">
-          <button id="open-folder" title="Open Folder"><i class="fas fa-folder-open"></i></button>
-        </div>
-      </div>
-      <div id="folder-tree" class="folder-tree"></div>
-    </section>
-    <div class="resizer" id="resizer-0"></div>
-
-    <section class="panel panel-editor-preview">
-      <!-- Tabs Bar (multiple files) -->
-      <div class="tabs-bar">
-        <div id="tabs" class="tabs"></div>
-        <button id="add-tab" title="New Tab" class="add-tab"><i class="fas fa-plus"></i></button>
-      </div>
-
-      <div class="editor-preview-container">
-        <!-- Markdown Editor Panel -->
-        <section class="panel panel-markdown">
-          <div class="panel-header">
-            <i class="fas fa-edit"></i>
-            <span>Editor</span>
-          </div>
-          <textarea id="markdown-input" placeholder="Write your Markdown here..." spellcheck="true"></textarea>
-          <div class="editor-footer">
-            <span id="char-count">0 characters</span>
-            <span id="word-count">0 words</span>
-          </div>
-        </section>
-        <div class="resizer internal-resizer" id="resizer-internal"></div>
-        <!-- Markdown Preview Panel -->
-        <section class="panel panel-preview">
-          <div class="panel-header">
-            <i class="fas fa-eye"></i>
-            <span>Preview</span>
-            <div class="preview-controls">
-              <button id="preview-toggle" title="Toggle live preview"><i class="fas fa-sync"></i></button>
-              <button id="fullscreen-preview" title="Fullscreen preview"><i class="fas fa-expand"></i></button>
+  <body>
+    <!-- Top Menu Bar -->
+    <header class="menu-bar">
+      <div class="menu-group">
+        <div class="menu-item">
+          <span>File</span>
+          <div class="dropdown-menu">
+            <div class="dropdown-item" id="menu-new">
+              <i class="fas fa-file"></i> New
+            </div>
+            <div class="dropdown-item" id="menu-open">
+              <i class="fas fa-folder-open"></i> Open...
+            </div>
+            <div class="dropdown-item" id="menu-save">
+              <i class="fas fa-save"></i> Save
+            </div>
+            <div class="dropdown-item" id="menu-save-as">
+              <i class="fas fa-file-export"></i> Save As...
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" id="menu-export-html">
+              <i class="fas fa-code"></i> Export as HTML
+            </div>
+            <div class="dropdown-item" id="menu-export-pdf">
+              <i class="fas fa-file-pdf"></i> Export as PDF
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" id="menu-exit">
+              <i class="fas fa-sign-out-alt"></i> Exit
             </div>
           </div>
-          <div id="markdown-preview" class="markdown-preview"></div>
-        </section>
+        </div>
+        <div class="menu-item">
+          <span>Edit</span>
+          <div class="dropdown-menu">
+            <div class="dropdown-item" id="menu-undo" disabled>
+              <i class="fas fa-undo"></i> Undo
+            </div>
+            <div class="dropdown-item" id="menu-redo" disabled>
+              <i class="fas fa-redo"></i> Redo
+            </div>
+          </div>
+        </div>
       </div>
-    </section>
-    <div class="resizer" id="resizer-2"></div>
-    <!-- AI Chat Panel -->
-    <section class="panel panel-chat">
-      <div class="panel-header">
-        <i class="fas fa-robot"></i>
-        <span>AI Chat</span>
+      <div class="menu-item toolbar">
+        <button title="Bold" id="toolbar-bold">
+          <i class="fas fa-bold"></i>
+        </button>
+        <button title="Italic" id="toolbar-italic">
+          <i class="fas fa-italic"></i>
+        </button>
+        <button title="Heading" id="toolbar-heading">
+          <i class="fas fa-heading"></i>
+        </button>
+        <button title="List" id="toolbar-list">
+          <i class="fas fa-list-ul"></i>
+        </button>
+        <button title="Code" id="toolbar-code">
+          <i class="fas fa-code"></i>
+        </button>
+        <button title="Quote" id="toolbar-quote">
+          <i class="fas fa-quote-right"></i>
+        </button>
+        <button title="Edit Markdown" id="toolbar-edit">
+          <i class="fas fa-edit"></i>
+        </button>
+        <button title="Link" id="toolbar-link">
+          <i class="fas fa-link"></i>
+        </button>
+        <button title="Image" id="toolbar-image">
+          <i class="fas fa-image"></i>
+        </button>
       </div>
-      <div class="chat-history" id="chat-history"></div>
-      <div class="chat-input">
-        <textarea id="chat-box" rows="2" placeholder="Type your message... (Shift+Enter for newline)"></textarea>
-        <button id="send-chat"><i class="fas fa-paper-plane"></i></button>
+      <div class="theme-toggle">
+        <select id="ollama-model-select" title="Select AI Model"></select>
+        <button id="toggle-theme" title="Toggle theme">
+          <i class="fas fa-sun"></i>
+          <i class="fas fa-moon"></i>
+        </button>
       </div>
-    </section>
-  </main>
+    </header>
 
-  <footer class="status-bar">
-    <span id="status-msg">Ready</span>
-  </footer>
+    <main class="container">
+      <!-- Folder Explorer Panel -->
+      <section class="panel panel-folder">
+        <div class="panel-header">
+          <i class="fas fa-folder"></i>
+          <span>Explorer</span>
+          <div class="folder-controls">
+            <button id="open-folder" title="Open Folder">
+              <i class="fas fa-folder-open"></i>
+            </button>
+          </div>
+        </div>
+        <div id="folder-tree" class="folder-tree"></div>
+      </section>
+      <div class="resizer" id="resizer-0"></div>
 
-  <!-- Floating Toolbar for Selected Text -->
-  <div id="selection-toolbar" class="selection-toolbar">
-    <button id="selection-edit-ai" title="Edit selected text with AI"><i class="fas fa-magic"></i></button>
-  </div>
+      <section class="panel panel-editor-preview">
+        <!-- Tabs Bar (multiple files) -->
+        <div class="tabs-bar">
+          <div id="tabs" class="tabs"></div>
+          <button id="add-tab" title="New Tab" class="add-tab">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
 
+        <div class="editor-preview-container">
+          <!-- Markdown Editor Panel -->
+          <section class="panel panel-markdown">
+            <div class="panel-header">
+              <i class="fas fa-edit"></i>
+              <span>Editor</span>
+            </div>
+            <textarea
+              id="markdown-input"
+              placeholder="Write your Markdown here..."
+              spellcheck="true"
+            ></textarea>
+            <div class="editor-footer">
+              <span id="char-count">0 characters</span>
+              <span id="word-count">0 words</span>
+            </div>
+          </section>
+          <div class="resizer internal-resizer" id="resizer-internal"></div>
+          <!-- Markdown Preview Panel -->
+          <section class="panel panel-preview">
+            <div class="panel-header">
+              <i class="fas fa-eye"></i>
+              <span>Preview</span>
+              <div class="preview-controls">
+                <button id="preview-toggle" title="Toggle live preview">
+                  <i class="fas fa-sync"></i>
+                </button>
+                <button id="fullscreen-preview" title="Fullscreen preview">
+                  <i class="fas fa-expand"></i>
+                </button>
+              </div>
+            </div>
+            <div id="markdown-preview" class="markdown-preview"></div>
+          </section>
+        </div>
+      </section>
+      <div class="resizer" id="resizer-2"></div>
+      <!-- AI Chat Panel -->
+      <section class="panel panel-chat">
+        <div class="panel-header">
+          <i class="fas fa-robot"></i>
+          <span>AI Chat</span>
+        </div>
+        <div class="chat-history" id="chat-history"></div>
+        <div class="chat-input">
+          <textarea
+            id="chat-box"
+            rows="2"
+            placeholder="Type your message... (Shift+Enter for newline)"
+          ></textarea>
+          <button id="send-chat"><i class="fas fa-paper-plane"></i></button>
+        </div>
+      </section>
+    </main>
 
+    <footer class="status-bar">
+      <span id="status-msg">Ready</span>
+    </footer>
 
-  <!-- Modal for Selected Text AI Editing -->
-  <div id="selection-ai-modal" class="modal">
-    <div class="modal-content">
-      <span class="close" id="close-selection-modal">&times;</span>
-      <h3>Edit Selected Text with AI</h3>
-      <p id="selected-text-preview"></p>
-      <input id="selection-ai-prompt" type="text" placeholder="Describe the edit you want (e.g. 'make it concise')" />
-      <textarea id="selection-ai-response" readonly></textarea>
-      <div class="modal-actions">
-        <button id="accept-selection" class="accept">Accept</button>
-        <button id="reject-selection" class="reject">Reject</button>
+    <!-- Floating Toolbar for Selected Text -->
+    <div id="selection-toolbar" class="selection-toolbar">
+      <button id="selection-edit-ai" title="Edit selected text with AI">
+        <i class="fas fa-magic"></i>
+      </button>
+    </div>
+
+    <!-- Modal for Selected Text AI Editing -->
+    <div id="selection-ai-modal" class="modal">
+      <div class="modal-content">
+        <span class="close" id="close-selection-modal">&times;</span>
+        <h3>Edit Selected Text with AI</h3>
+        <p id="selected-text-preview"></p>
+        <input
+          id="selection-ai-prompt"
+          type="text"
+          placeholder="Describe the edit you want (e.g. 'make it concise')"
+        />
+        <textarea id="selection-ai-response" readonly></textarea>
+        <div class="modal-actions">
+          <button id="accept-selection" class="accept">Accept</button>
+          <button id="reject-selection" class="reject">Reject</button>
+        </div>
       </div>
     </div>
-  </div>
-  <script type="module" src="/src/main.ts"></script>
-</body>
-
+    <script type="module" src="/src/main.ts"></script>
+  </body>
 </html>
