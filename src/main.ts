@@ -11,7 +11,6 @@ import jsPDF from "jspdf";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { readDir, exists, mkdir } from "@tauri-apps/plugin-fs";
 
-
 // Configure marked with syntax highlighting
 marked.use({
   extensions: [
@@ -56,9 +55,7 @@ const statusMsg = document.getElementById("status-msg") as HTMLSpanElement;
 const openFolderButton = document.getElementById(
   "open-folder",
 ) as HTMLButtonElement;
-const newFileButton = document.getElementById(
-  "new-file",
-) as HTMLButtonElement;
+const newFileButton = document.getElementById("new-file") as HTMLButtonElement;
 const newFolderButton = document.getElementById(
   "new-folder",
 ) as HTMLButtonElement;
@@ -99,9 +96,13 @@ const openFolderBigButton = document.getElementById(
 
 let currentFolderPath: string | null = null;
 let selectedFolderPath: string | null = null;
+let currentWatcher: any = null;
 
 // Custom input dialog for Tauri (since prompt() is not available)
-async function customPrompt(title: string, placeholder: string = ""): Promise<string | null> {
+async function customPrompt(
+  title: string,
+  placeholder: string = "",
+): Promise<string | null> {
   return new Promise((resolve) => {
     // Create modal overlay
     const modal = document.createElement("div");
@@ -235,11 +236,12 @@ function isFileAlreadyOpen(filePath: string): boolean {
   return allTabs.some((tab) => tab.path === filePath);
 }
 
-
-
-
 // Function to create folder tree HTML recursively
-async function createFolderTree(path: string, container: HTMLDivElement, depth: number = 0) {
+async function createFolderTree(
+  path: string,
+  container: HTMLDivElement,
+  depth: number = 0,
+) {
   const MAX_DEPTH = 10; // Prevent infinite recursion
   container.innerHTML = ""; // Clear existing content
 
@@ -271,7 +273,7 @@ async function createFolderTree(path: string, container: HTMLDivElement, depth: 
         event.stopPropagation();
 
         // Clear previous selection
-        document.querySelectorAll(".folder-item.selected").forEach(el => {
+        document.querySelectorAll(".folder-item.selected").forEach((el) => {
           el.classList.remove("selected");
         });
 
@@ -312,7 +314,7 @@ async function createFolderTree(path: string, container: HTMLDivElement, depth: 
           const wasSelected = item.classList.contains("selected");
 
           // Clear previous selection
-          document.querySelectorAll(".folder-item.selected").forEach(el => {
+          document.querySelectorAll(".folder-item.selected").forEach((el) => {
             el.classList.remove("selected");
           });
 
@@ -418,17 +420,28 @@ async function createFolderTree(path: string, container: HTMLDivElement, depth: 
             // Provide more specific error messages
             if (err instanceof Error) {
               const errorMessage = err.message.toLowerCase();
-              if (errorMessage.includes("permission") || errorMessage.includes("access")) {
-                if (statusMsg) statusMsg.textContent = `Permission denied: ${entry.name}`;
-              } else if (errorMessage.includes("not found") || errorMessage.includes("no such file")) {
-                if (statusMsg) statusMsg.textContent = `File not found: ${entry.name}`;
+              if (
+                errorMessage.includes("permission") ||
+                errorMessage.includes("access")
+              ) {
+                if (statusMsg)
+                  statusMsg.textContent = `Permission denied: ${entry.name}`;
+              } else if (
+                errorMessage.includes("not found") ||
+                errorMessage.includes("no such file")
+              ) {
+                if (statusMsg)
+                  statusMsg.textContent = `File not found: ${entry.name}`;
               } else if (errorMessage.includes("is a directory")) {
-                if (statusMsg) statusMsg.textContent = `Cannot open directory as file: ${entry.name}`;
+                if (statusMsg)
+                  statusMsg.textContent = `Cannot open directory as file: ${entry.name}`;
               } else {
-                if (statusMsg) statusMsg.textContent = `Error reading file: ${entry.name} (${err.message})`;
+                if (statusMsg)
+                  statusMsg.textContent = `Error reading file: ${entry.name} (${err.message})`;
               }
             } else {
-              if (statusMsg) statusMsg.textContent = `Error reading file: ${entry.name}`;
+              if (statusMsg)
+                statusMsg.textContent = `Error reading file: ${entry.name}`;
             }
           }
         });
@@ -447,17 +460,30 @@ async function createFolderTree(path: string, container: HTMLDivElement, depth: 
     // Provide more specific error messages
     if (err instanceof Error) {
       const errorMessage = err.message.toLowerCase();
-      if (errorMessage.includes("permission") || errorMessage.includes("access")) {
+      if (
+        errorMessage.includes("permission") ||
+        errorMessage.includes("access")
+      ) {
         errorItem.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Permission denied`;
-        if (statusMsg) statusMsg.textContent = "Permission denied: Cannot access this directory";
-      } else if (errorMessage.includes("not found") || errorMessage.includes("no such file")) {
+        if (statusMsg)
+          statusMsg.textContent =
+            "Permission denied: Cannot access this directory";
+      } else if (
+        errorMessage.includes("not found") ||
+        errorMessage.includes("no such file")
+      ) {
         errorItem.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Directory not found`;
         if (statusMsg) statusMsg.textContent = "Directory not found";
-      } else if (errorMessage.includes("network") || errorMessage.includes("connection")) {
+      } else if (
+        errorMessage.includes("network") ||
+        errorMessage.includes("connection")
+      ) {
         errorItem.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Network error`;
-        if (statusMsg) statusMsg.textContent = "Network error: Cannot access directory";
+        if (statusMsg)
+          statusMsg.textContent = "Network error: Cannot access directory";
       } else {
-        if (statusMsg) statusMsg.textContent = `Error reading directory: ${err.message}`;
+        if (statusMsg)
+          statusMsg.textContent = `Error reading directory: ${err.message}`;
       }
     } else {
       if (statusMsg) statusMsg.textContent = "Error reading directory";
@@ -476,7 +502,10 @@ async function createNewFile(): Promise<void> {
   }
 
   try {
-    const fileName = await customPrompt("Create New File", "Enter file name (with extension)");
+    const fileName = await customPrompt(
+      "Create New File",
+      "Enter file name (with extension)",
+    );
     if (!fileName || !fileName.trim()) return;
 
     const trimmedFileName = fileName.trim();
@@ -485,7 +514,8 @@ async function createNewFile(): Promise<void> {
     // Check if file already exists
     const fileExists = await exists(filePath);
     if (fileExists) {
-      if (statusMsg) statusMsg.textContent = `File "${trimmedFileName}" already exists`;
+      if (statusMsg)
+        statusMsg.textContent = `File "${trimmedFileName}" already exists`;
       return;
     }
 
@@ -500,10 +530,17 @@ async function createNewFile(): Promise<void> {
       if (previousSelected) {
         selectedFolderPath = previousSelected;
         // Optionally, re-select the folder item in the tree
-        const selectedElements = folderTreeContainer.querySelectorAll(".folder-item.selected");
-        selectedElements.forEach(el => el.classList.remove("selected"));
-        const newSelected = Array.from(folderTreeContainer.querySelectorAll(".folder-item")).find(el => {
-          return el.textContent?.includes(previousSelected.split("/").pop() || "") && el.classList.contains("folder");
+        const selectedElements = folderTreeContainer.querySelectorAll(
+          ".folder-item.selected",
+        );
+        selectedElements.forEach((el) => el.classList.remove("selected"));
+        const newSelected = Array.from(
+          folderTreeContainer.querySelectorAll(".folder-item"),
+        ).find((el) => {
+          return (
+            el.textContent?.includes(previousSelected.split("/").pop() || "") &&
+            el.classList.contains("folder")
+          );
         });
         if (newSelected) {
           newSelected.classList.add("selected");
@@ -520,28 +557,48 @@ async function createNewFile(): Promise<void> {
       const errorMessage = error.message.toLowerCase();
 
       // Check for actual permission errors first
-      if (errorMessage.includes("permission denied") || errorMessage.includes("access denied")) {
-        if (statusMsg) statusMsg.textContent = "Permission denied: Cannot create file in this location";
+      if (
+        errorMessage.includes("permission denied") ||
+        errorMessage.includes("access denied")
+      ) {
+        if (statusMsg)
+          statusMsg.textContent =
+            "Permission denied: Cannot create file in this location";
       }
       // Check for path not found errors
-      else if (errorMessage.includes("no such file") || errorMessage.includes("path not found")) {
-        if (statusMsg) statusMsg.textContent = "Path not found: Please check the folder path";
+      else if (
+        errorMessage.includes("no such file") ||
+        errorMessage.includes("path not found")
+      ) {
+        if (statusMsg)
+          statusMsg.textContent =
+            "Path not found: Please check the folder path";
       }
       // Check for file already exists
-      else if (errorMessage.includes("already exists") || errorMessage.includes("file exists")) {
+      else if (
+        errorMessage.includes("already exists") ||
+        errorMessage.includes("file exists")
+      ) {
         if (statusMsg) statusMsg.textContent = "File already exists";
       }
       // Handle Tauri-specific "forbidden path" errors differently
       else if (errorMessage.includes("forbidden path")) {
-        if (statusMsg) statusMsg.textContent = "Invalid path: File name contains invalid characters or format";
+        if (statusMsg)
+          statusMsg.textContent =
+            "Invalid path: File name contains invalid characters or format";
       }
       // Handle other forbidden/restricted errors
-      else if (errorMessage.includes("forbidden") || errorMessage.includes("restricted")) {
-        if (statusMsg) statusMsg.textContent = "Access forbidden: This path is restricted";
+      else if (
+        errorMessage.includes("forbidden") ||
+        errorMessage.includes("restricted")
+      ) {
+        if (statusMsg)
+          statusMsg.textContent = "Access forbidden: This path is restricted";
       }
       // Generic error with more details
       else {
-        if (statusMsg) statusMsg.textContent = `Error creating file: ${error.message}`;
+        if (statusMsg)
+          statusMsg.textContent = `Error creating file: ${error.message}`;
       }
     } else {
       if (statusMsg) statusMsg.textContent = "Error creating file";
@@ -558,7 +615,10 @@ async function createNewFolder(): Promise<void> {
   }
 
   try {
-    const folderName = await customPrompt("Create New Folder", "Enter folder name");
+    const folderName = await customPrompt(
+      "Create New Folder",
+      "Enter folder name",
+    );
     if (!folderName || !folderName.trim()) return;
 
     const folderPath = `${targetPath}/${folderName.trim()}`;
@@ -566,7 +626,8 @@ async function createNewFolder(): Promise<void> {
     // Check if folder already exists
     const folderExists = await exists(folderPath);
     if (folderExists) {
-      if (statusMsg) statusMsg.textContent = `Folder "${folderName}" already exists`;
+      if (statusMsg)
+        statusMsg.textContent = `Folder "${folderName}" already exists`;
       return;
     }
 
@@ -581,10 +642,17 @@ async function createNewFolder(): Promise<void> {
       if (previousSelected) {
         selectedFolderPath = previousSelected;
         // Optionally, re-select the folder item in the tree
-        const selectedElements = folderTreeContainer.querySelectorAll(".folder-item.selected");
-        selectedElements.forEach(el => el.classList.remove("selected"));
-        const newSelected = Array.from(folderTreeContainer.querySelectorAll(".folder-item")).find(el => {
-          return el.textContent?.includes(previousSelected.split("/").pop() || "") && el.classList.contains("folder");
+        const selectedElements = folderTreeContainer.querySelectorAll(
+          ".folder-item.selected",
+        );
+        selectedElements.forEach((el) => el.classList.remove("selected"));
+        const newSelected = Array.from(
+          folderTreeContainer.querySelectorAll(".folder-item"),
+        ).find((el) => {
+          return (
+            el.textContent?.includes(previousSelected.split("/").pop() || "") &&
+            el.classList.contains("folder")
+          );
         });
         if (newSelected) {
           newSelected.classList.add("selected");
@@ -601,28 +669,48 @@ async function createNewFolder(): Promise<void> {
       const errorMessage = error.message.toLowerCase();
 
       // Check for actual permission errors first
-      if (errorMessage.includes("permission denied") || errorMessage.includes("access denied")) {
-        if (statusMsg) statusMsg.textContent = "Permission denied: Cannot create folder in this location";
+      if (
+        errorMessage.includes("permission denied") ||
+        errorMessage.includes("access denied")
+      ) {
+        if (statusMsg)
+          statusMsg.textContent =
+            "Permission denied: Cannot create folder in this location";
       }
       // Check for path not found errors
-      else if (errorMessage.includes("no such file") || errorMessage.includes("path not found")) {
-        if (statusMsg) statusMsg.textContent = "Path not found: Please check the folder path";
+      else if (
+        errorMessage.includes("no such file") ||
+        errorMessage.includes("path not found")
+      ) {
+        if (statusMsg)
+          statusMsg.textContent =
+            "Path not found: Please check the folder path";
       }
       // Check for folder already exists
-      else if (errorMessage.includes("already exists") || errorMessage.includes("file exists")) {
+      else if (
+        errorMessage.includes("already exists") ||
+        errorMessage.includes("file exists")
+      ) {
         if (statusMsg) statusMsg.textContent = "Folder already exists";
       }
       // Handle Tauri-specific "forbidden path" errors differently
       else if (errorMessage.includes("forbidden path")) {
-        if (statusMsg) statusMsg.textContent = "Invalid path: Folder name contains invalid characters or format";
+        if (statusMsg)
+          statusMsg.textContent =
+            "Invalid path: Folder name contains invalid characters or format";
       }
       // Handle other forbidden/restricted errors
-      else if (errorMessage.includes("forbidden") || errorMessage.includes("restricted")) {
-        if (statusMsg) statusMsg.textContent = "Access forbidden: This path is restricted";
+      else if (
+        errorMessage.includes("forbidden") ||
+        errorMessage.includes("restricted")
+      ) {
+        if (statusMsg)
+          statusMsg.textContent = "Access forbidden: This path is restricted";
       }
       // Generic error with more details
       else {
-        if (statusMsg) statusMsg.textContent = `Error creating folder: ${error.message}`;
+        if (statusMsg)
+          statusMsg.textContent = `Error creating folder: ${error.message}`;
       }
     } else {
       if (statusMsg) statusMsg.textContent = "Error creating folder";
@@ -638,6 +726,57 @@ if (newFileButton) {
 // New folder button event listener
 if (newFolderButton) {
   newFolderButton.addEventListener("click", createNewFolder);
+}
+
+function watchFolderChanges(folderPath: string): void {
+  // Stop any existing watcher
+  if (currentWatcher) {
+    clearInterval(currentWatcher as any);
+    currentWatcher = null;
+  }
+
+  // Store the current folder state for comparison
+  let lastFolderState: string = "";
+
+  // Function to get current folder state (simplified hash of file list)
+  const getFolderState = async (): Promise<string> => {
+    try {
+      const entries = await readDir(folderPath);
+      return entries
+        .map((entry) => `${entry.name}:${entry.isDirectory}`)
+        .sort()
+        .join("|");
+    } catch (err) {
+      console.error("Error reading folder state:", err);
+      return "";
+    }
+  };
+
+  // Initialize the last state
+  getFolderState().then((state) => {
+    lastFolderState = state;
+    console.log("Folder watcher started for:", folderPath);
+  });
+
+  // Poll for changes every 2 seconds
+  const intervalId = setInterval(async () => {
+    if (!currentFolderPath || !folderTreeContainer) return;
+
+    try {
+      const currentState = await getFolderState();
+      if (currentState !== lastFolderState && currentState !== "") {
+        console.log("File system change detected, refreshing folder tree");
+        lastFolderState = currentState;
+
+        // Refresh the folder tree UI
+        await createFolderTree(currentFolderPath, folderTreeContainer, 0);
+      }
+    } catch (err) {
+      console.error("Error checking folder changes:", err);
+    }
+  }, 2000); // Check every 2 seconds
+
+  currentWatcher = intervalId as any;
 }
 
 // Open folder dialog and load folder tree
@@ -658,6 +797,9 @@ if (openFolderButton) {
             statusMsg.textContent = `Opened folder: ${currentFolderPath}`;
         }
         toggleBigOpenFolderButton();
+
+        // Start watching the folder for changes
+        watchFolderChanges(currentFolderPath);
       }
     } catch (err) {
       console.error("Error opening folder:", err);
@@ -684,6 +826,9 @@ if (openFolderBigButton) {
             statusMsg.textContent = `Opened folder: ${currentFolderPath}`;
         }
         toggleBigOpenFolderButton();
+
+        // Start watching the folder for changes
+        watchFolderChanges(currentFolderPath);
       }
     } catch (err) {
       console.error("Error opening folder:", err);
@@ -2222,27 +2367,29 @@ function setupPanelResizing(): void {
 // Cross-platform keyboard shortcut handling
 document.addEventListener("keydown", (event) => {
   // Detect platform for cross-platform shortcuts
-  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
   const cmdOrCtrl = isMac ? event.metaKey : event.ctrlKey;
 
   // File menu shortcuts
   if (cmdOrCtrl) {
     switch (event.key.toLowerCase()) {
-      case 'n':
+      case "n":
         event.preventDefault();
         newFile();
         break;
-      case 'o':
+      case "o":
         if (event.shiftKey) {
           event.preventDefault();
-          const openFolderButton = document.getElementById("open-folder") as HTMLButtonElement;
+          const openFolderButton = document.getElementById(
+            "open-folder",
+          ) as HTMLButtonElement;
           if (openFolderButton) openFolderButton.click();
         } else {
           event.preventDefault();
           openFile();
         }
         break;
-      case 's':
+      case "s":
         event.preventDefault();
         if (event.shiftKey) {
           saveFileAs();
@@ -2250,7 +2397,7 @@ document.addEventListener("keydown", (event) => {
           saveFile();
         }
         break;
-      case 'e':
+      case "e":
         event.preventDefault();
         if (event.shiftKey) {
           exportPdf();
@@ -2258,14 +2405,16 @@ document.addEventListener("keydown", (event) => {
           exportHtml();
         }
         break;
-      case 'q':
+      case "q":
         event.preventDefault();
         exitApp();
         break;
-      case 't':
+      case "t":
         if (event.shiftKey) {
           event.preventDefault();
-          const themeToggle = document.getElementById("toggle-theme") as HTMLButtonElement;
+          const themeToggle = document.getElementById(
+            "toggle-theme",
+          ) as HTMLButtonElement;
           if (themeToggle) themeToggle.click();
         } else {
           event.preventDefault();
@@ -2280,7 +2429,7 @@ document.addEventListener("keydown", (event) => {
     if (event.key === "z" && !event.shiftKey) {
       event.preventDefault();
       undo();
-    } else if ((event.key === "y") || (event.key === "z" && event.shiftKey)) {
+    } else if (event.key === "y" || (event.key === "z" && event.shiftKey)) {
       event.preventDefault();
       redo();
     }
@@ -2289,12 +2438,12 @@ document.addEventListener("keydown", (event) => {
   // Toolbar formatting shortcuts
   if (cmdOrCtrl) {
     switch (event.key.toLowerCase()) {
-      case 'b':
+      case "b":
         event.preventDefault();
         const boldButton = document.getElementById("toolbar-bold");
         if (boldButton) boldButton.click();
         break;
-      case 'i':
+      case "i":
         if (event.shiftKey) {
           event.preventDefault();
           const imageButton = document.getElementById("toolbar-image");
@@ -2305,27 +2454,27 @@ document.addEventListener("keydown", (event) => {
           if (italicButton) italicButton.click();
         }
         break;
-      case 'h':
+      case "h":
         event.preventDefault();
         const headingButton = document.getElementById("toolbar-heading");
         if (headingButton) headingButton.click();
         break;
-      case 'l':
+      case "l":
         event.preventDefault();
         const listButton = document.getElementById("toolbar-list");
         if (listButton) listButton.click();
         break;
-      case '`':
+      case "`":
         event.preventDefault();
         const codeButton = document.getElementById("toolbar-code");
         if (codeButton) codeButton.click();
         break;
-      case 'q':
+      case "q":
         event.preventDefault();
         const quoteButton = document.getElementById("toolbar-quote");
         if (quoteButton) quoteButton.click();
         break;
-      case 'k':
+      case "k":
         event.preventDefault();
         const linkButton = document.getElementById("toolbar-link");
         if (linkButton) linkButton.click();
@@ -2422,7 +2571,8 @@ function showOllamaWarningModal(): void {
 
   // Description
   const description = document.createElement("p");
-  description.textContent = "This application requires Ollama to be installed and running for AI features to work. Please install and start Ollama to use the chat and text editing features.";
+  description.textContent =
+    "This application requires Ollama to be installed and running for AI features to work. Please install and start Ollama to use the chat and text editing features.";
   description.style.cssText = `
     margin: 0 0 25px 0;
     color: var(--text-secondary, #666666);
@@ -2540,7 +2690,9 @@ function showOllamaWarningModal(): void {
 function disableAIFeatures(): void {
   // Disable chat input
   const chatInputBox = document.getElementById("chat-box") as HTMLInputElement;
-  const sendChatButton = document.getElementById("send-chat") as HTMLButtonElement;
+  const sendChatButton = document.getElementById(
+    "send-chat",
+  ) as HTMLButtonElement;
 
   if (chatInputBox) {
     chatInputBox.disabled = true;
@@ -2552,14 +2704,18 @@ function disableAIFeatures(): void {
   }
 
   // Disable selection AI button
-  const selectionEditButton = document.getElementById("selection-edit-ai") as HTMLButtonElement;
+  const selectionEditButton = document.getElementById(
+    "selection-edit-ai",
+  ) as HTMLButtonElement;
   if (selectionEditButton) {
     selectionEditButton.disabled = true;
     selectionEditButton.title = "AI features unavailable - Ollama not running";
   }
 
   // Disable model selector
-  const modelSelectDropdown = document.getElementById("ollama-model-select") as HTMLSelectElement;
+  const modelSelectDropdown = document.getElementById(
+    "ollama-model-select",
+  ) as HTMLSelectElement;
   if (modelSelectDropdown) {
     modelSelectDropdown.disabled = true;
   }
@@ -2574,7 +2730,9 @@ function disableAIFeatures(): void {
 function enableAIFeatures(): void {
   // Re-enable chat input
   const chatInputBox = document.getElementById("chat-box") as HTMLInputElement;
-  const sendChatButton = document.getElementById("send-chat") as HTMLButtonElement;
+  const sendChatButton = document.getElementById(
+    "send-chat",
+  ) as HTMLButtonElement;
 
   if (chatInputBox) {
     chatInputBox.disabled = false;
@@ -2586,14 +2744,18 @@ function enableAIFeatures(): void {
   }
 
   // Re-enable selection AI button
-  const selectionEditButton = document.getElementById("selection-edit-ai") as HTMLButtonElement;
+  const selectionEditButton = document.getElementById(
+    "selection-edit-ai",
+  ) as HTMLButtonElement;
   if (selectionEditButton) {
     selectionEditButton.disabled = false;
     selectionEditButton.title = "Edit with AI";
   }
 
   // Re-enable model selector
-  const modelSelectDropdown = document.getElementById("ollama-model-select") as HTMLSelectElement;
+  const modelSelectDropdown = document.getElementById(
+    "ollama-model-select",
+  ) as HTMLSelectElement;
   if (modelSelectDropdown) {
     modelSelectDropdown.disabled = false;
   }
