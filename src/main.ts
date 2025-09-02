@@ -10,8 +10,7 @@ import renderMathInElement from "katex/contrib/auto-render";
 import jsPDF from "jspdf";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { readDir, exists, mkdir } from "@tauri-apps/plugin-fs";
-
-
+import { readFile } from "@tauri-apps/plugin-fs";
 
 
 // Configure marked with syntax highlighting
@@ -67,6 +66,31 @@ const newFolderButton = document.getElementById(
 const folderTreeContainer = document.getElementById(
   "folder-tree",
 ) as HTMLDivElement;
+
+// Create a new toolbar container for new file and new folder buttons below the folder tree
+let newToolbar: HTMLDivElement | null = null;
+if (folderTreeContainer) {
+  newToolbar = document.createElement("div");
+  newToolbar.id = "new-file-folder-toolbar";
+  newToolbar.style.display = "flex";
+  newToolbar.style.justifyContent = "flex-start";
+  newToolbar.style.alignItems = "center";
+  newToolbar.style.padding = "0.25rem 0.5rem";
+  newToolbar.style.borderTop = "1px solid var(--border)";
+  newToolbar.style.background = "var(--panel-bg-secondary)";
+  newToolbar.style.gap = "0.5rem";
+
+  // Move newFileButton and newFolderButton into this new toolbar
+  if (newFileButton) {
+    newToolbar.appendChild(newFileButton);
+  }
+  if (newFolderButton) {
+    newToolbar.appendChild(newFolderButton);
+  }
+
+  // Insert the new toolbar just below the folder tree
+  folderTreeContainer.insertAdjacentElement("afterend", newToolbar);
+}
 const openFolderBigContainer = document.getElementById(
   "open-folder-big",
 ) as HTMLDivElement;
@@ -212,30 +236,26 @@ function isFileAlreadyOpen(filePath: string): boolean {
   return allTabs.some((tab) => tab.path === filePath);
 }
 
-// Function to check if a file is a text file (not binary)
-function isTextFile(fileName: string): boolean {
-  const textExtensions = [
-    ".txt",
-    ".md",
-    ".js",
-    ".ts",
-    ".json",
-    ".html",
-    ".css",
-    ".py",
-    ".java",
-    ".cpp",
-    ".c",
-    ".h",
-    ".xml",
-    ".yml",
-    ".yaml",
-    ".ini",
-    ".cfg",
-    ".log",
-  ];
-  const ext = fileName.toLowerCase().substring(fileName.lastIndexOf("."));
-  return textExtensions.includes(ext);
+
+// Function to check if a file is a text file (not binary) by checking encoding instead of extension
+async function isTextFile(filePath: string): Promise<boolean> {
+  try {
+    // Read first 512 bytes of the file using Tauri FS plugin
+    const bytes = await readFile(filePath, {});
+    const length = Math.min(bytes.length, 512);
+
+    // Check for binary characters (null bytes)
+    for (let i = 0; i < length; i++) {
+      if (bytes[i] === 0) {
+        return false; // Binary file
+      }
+    }
+    return true; // Text file
+  } catch (error) {
+    console.error("Error checking file encoding:", error);
+    // Fallback: treat as binary to be safe
+    return false;
+  }
 }
 
 // Function to create folder tree HTML recursively
@@ -353,7 +373,7 @@ async function createFolderTree(path: string, container: HTMLDivElement, depth: 
         // File
         item.classList.add("file");
         const isImage = /\.(png|jpg|jpeg|gif|svg|webp)$/i.test(entry.name);
-        const isText = isTextFile(entry.name);
+        const isText = await isTextFile(entry.name);
         item.innerHTML = `<i class="fas fa-${isImage ? "image" : "file"}"></i> ${entry.name}`;
 
         // Click to open file in new tab or insert image
