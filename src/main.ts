@@ -1430,10 +1430,12 @@ function setupAddTabButton(): void {
 // Panel resizing functionality
 function setupPanelResizing(): void {
   const container = document.querySelector('.container') as HTMLElement;
-  const resizers = document.querySelectorAll('.resizer') as NodeListOf<HTMLElement>;
+  const resizers = document.querySelectorAll('.resizer:not(.internal-resizer)') as NodeListOf<HTMLElement>;
+  const internalResizer = document.getElementById('resizer-internal') as HTMLElement;
   let isCurrentlyResizing = false;
   let startMouseX: number;
 
+  // Main container resizers
   resizers.forEach((resizer, resizerIndex) => {
     resizer.addEventListener('mousedown', (event: MouseEvent) => {
       isCurrentlyResizing = true;
@@ -1448,53 +1450,41 @@ function setupPanelResizing(): void {
         const currentColumns = getComputedStyle(container).gridTemplateColumns.split(' ');
 
         if (resizerIndex === 0) {
-          // First resizer (between folder and editor)
+          // First resizer (between folder and editor-preview)
           const currentLeftWidth = parseFloat(currentColumns[0]);
           const currentMiddleWidth = parseFloat(currentColumns[2]);
+          const currentChatWidth = parseFloat(currentColumns[4]);
 
           let newLeftWidth = currentLeftWidth + deltaX;
-          let newMiddleWidth = currentMiddleWidth - deltaX;
 
           // Minimum width constraints
-          const minimumPanelWidth = 200;
-          const maximumLeftWidth = containerWidth - (3 * minimumPanelWidth) - 18; // 18px for resizers
+          const minFolderWidth = 200;
+          const minEditorPreviewWidth = 400;
+          const minChatWidth = 300;
 
-          newLeftWidth = Math.max(minimumPanelWidth, Math.min(maximumLeftWidth, newLeftWidth));
-          newMiddleWidth = Math.max(minimumPanelWidth, currentMiddleWidth - (newLeftWidth - currentLeftWidth));
+          newLeftWidth = Math.max(minFolderWidth, Math.min(containerWidth - minEditorPreviewWidth - minChatWidth - 12, newLeftWidth));
 
-          container.style.gridTemplateColumns = `${newLeftWidth}px 6px ${newMiddleWidth}px 6px ${currentColumns[4]} 6px ${currentColumns[6]}`;
+          const newMiddleWidth = containerWidth - newLeftWidth - currentChatWidth - 12;
+
+          container.style.gridTemplateColumns = `${newLeftWidth}px 6px ${newMiddleWidth}px 6px ${currentChatWidth}px`;
         } else if (resizerIndex === 1) {
-          // Second resizer (between editor and preview)
+          // Second resizer (between editor-preview and chat)
+          const currentLeftWidth = parseFloat(currentColumns[0]);
           const currentMiddleWidth = parseFloat(currentColumns[2]);
-          const currentRightWidth = parseFloat(currentColumns[4]);
+          const currentChatWidth = parseFloat(currentColumns[4]);
 
-          let newMiddleWidth = currentMiddleWidth + deltaX;
-          let newRightWidth = currentRightWidth - deltaX;
-
-          // Minimum width constraints
-          const minimumPanelWidth = 250;
-          const maximumMiddleWidth = containerWidth - (3 * minimumPanelWidth) - 18;
-
-          newMiddleWidth = Math.max(minimumPanelWidth, Math.min(maximumMiddleWidth, newMiddleWidth));
-          newRightWidth = Math.max(minimumPanelWidth, currentRightWidth - (newMiddleWidth - currentMiddleWidth));
-
-          container.style.gridTemplateColumns = `${currentColumns[0]} 6px ${newMiddleWidth}px 6px ${newRightWidth}px 6px ${currentColumns[6]}`;
-        } else {
-          // Third resizer (between preview and chat)
-          const currentRightWidth = parseFloat(currentColumns[4]);
-          const currentChatWidth = parseFloat(currentColumns[6]);
-
-          let newRightWidth = currentRightWidth + deltaX;
           let newChatWidth = currentChatWidth - deltaX;
 
           // Minimum width constraints
-          const minimumPanelWidth = 250;
-          const maximumRightWidth = containerWidth - (3 * minimumPanelWidth) - 18;
+          const minFolderWidth = 200;
+          const minEditorPreviewWidth = 400;
+          const minChatWidth = 300;
 
-          newRightWidth = Math.max(minimumPanelWidth, Math.min(maximumRightWidth, newRightWidth));
-          newChatWidth = Math.max(minimumPanelWidth, currentChatWidth - (newRightWidth - currentRightWidth));
+          newChatWidth = Math.max(minChatWidth, Math.min(containerWidth - minFolderWidth - minEditorPreviewWidth - 12, newChatWidth));
 
-          container.style.gridTemplateColumns = `${currentColumns[0]} 6px ${currentColumns[2]} 6px ${newRightWidth}px 6px ${newChatWidth}px`;
+          const newMiddleWidth = containerWidth - currentLeftWidth - newChatWidth - 12;
+
+          container.style.gridTemplateColumns = `${currentLeftWidth}px 6px ${newMiddleWidth}px 6px ${newChatWidth}px`;
         }
 
         startMouseX = moveEvent.clientX;
@@ -1513,6 +1503,55 @@ function setupPanelResizing(): void {
       event.preventDefault(); // Prevent text selection
     });
   });
+
+  // Internal resizer between editor and preview
+  if (internalResizer) {
+    internalResizer.addEventListener('mousedown', (event: MouseEvent) => {
+      isCurrentlyResizing = true;
+      internalResizer.classList.add('active');
+      startMouseX = event.clientX;
+
+      const editorPreviewContainer = document.querySelector('.editor-preview-container') as HTMLElement;
+      const editorPanel = document.querySelector('.panel-markdown') as HTMLElement;
+      const previewPanel = document.querySelector('.panel-preview') as HTMLElement;
+
+      function handleMouseMove(moveEvent: MouseEvent): void {
+        if (!isCurrentlyResizing || !editorPreviewContainer) return;
+
+        const deltaX = moveEvent.clientX - startMouseX;
+        const containerRect = editorPreviewContainer.getBoundingClientRect();
+
+        const currentEditorWidth = editorPanel.offsetWidth;
+        const currentPreviewWidth = previewPanel.offsetWidth;
+
+        let newEditorWidth = currentEditorWidth + deltaX;
+
+        // Minimum width constraints
+        const minPanelWidth = 200;
+        const maxEditorWidth = containerRect.width - minPanelWidth;
+
+        newEditorWidth = Math.max(minPanelWidth, Math.min(maxEditorWidth, newEditorWidth));
+
+        // Set flex-basis to maintain proportions
+        editorPanel.style.flexBasis = `${newEditorWidth}px`;
+        previewPanel.style.flexBasis = `${containerRect.width - newEditorWidth - 6}px`; // 6px for resizer
+
+        startMouseX = moveEvent.clientX;
+      }
+
+      function handleMouseUp(): void {
+        isCurrentlyResizing = false;
+        internalResizer.classList.remove('active');
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      }
+
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      event.preventDefault(); // Prevent text selection
+    });
+  }
 }
 
 document.addEventListener('keydown', (event) => {

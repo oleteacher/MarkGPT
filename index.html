@@ -55,12 +55,6 @@
     </div>
   </header>
 
-  <!-- Tabs Bar (multiple files) -->
-  <div class="tabs-bar">
-    <div id="tabs" class="tabs"></div>
-    <button id="add-tab" title="New Tab" class="add-tab"><i class="fas fa-plus"></i></button>
-  </div>
-
   <main class="container">
     <!-- Folder Explorer Panel -->
     <section class="panel panel-folder">
@@ -74,30 +68,41 @@
       <div id="folder-tree" class="folder-tree"></div>
     </section>
     <div class="resizer" id="resizer-0"></div>
-    <!-- Markdown Editor Panel -->
-    <section class="panel panel-markdown">
-      <div class="panel-header">
-        <i class="fas fa-edit"></i>
-        <span>Editor</span>
+
+    <section class="panel panel-editor-preview">
+      <!-- Tabs Bar (multiple files) -->
+      <div class="tabs-bar">
+        <div id="tabs" class="tabs"></div>
+        <button id="add-tab" title="New Tab" class="add-tab"><i class="fas fa-plus"></i></button>
       </div>
-      <textarea id="markdown-input" placeholder="Write your Markdown here..." spellcheck="true"></textarea>
-      <div class="editor-footer">
-        <span id="char-count">0 characters</span>
-        <span id="word-count">0 words</span>
+
+      <div class="editor-preview-container">
+        <!-- Markdown Editor Panel -->
+        <section class="panel panel-markdown">
+          <div class="panel-header">
+            <i class="fas fa-edit"></i>
+            <span>Editor</span>
+          </div>
+          <textarea id="markdown-input" placeholder="Write your Markdown here..." spellcheck="true"></textarea>
+          <div class="editor-footer">
+            <span id="char-count">0 characters</span>
+            <span id="word-count">0 words</span>
+          </div>
+        </section>
+        <div class="resizer internal-resizer" id="resizer-internal"></div>
+        <!-- Markdown Preview Panel -->
+        <section class="panel panel-preview">
+          <div class="panel-header">
+            <i class="fas fa-eye"></i>
+            <span>Preview</span>
+            <div class="preview-controls">
+              <button id="preview-toggle" title="Toggle live preview"><i class="fas fa-sync"></i></button>
+              <button id="fullscreen-preview" title="Fullscreen preview"><i class="fas fa-expand"></i></button>
+            </div>
+          </div>
+          <div id="markdown-preview" class="markdown-preview"></div>
+        </section>
       </div>
-    </section>
-    <div class="resizer" id="resizer-1"></div>
-    <!-- Markdown Preview Panel -->
-    <section class="panel panel-preview">
-      <div class="panel-header">
-        <i class="fas fa-eye"></i>
-        <span>Preview</span>
-        <div class="preview-controls">
-          <button id="preview-toggle" title="Toggle live preview"><i class="fas fa-sync"></i></button>
-          <button id="fullscreen-preview" title="Fullscreen preview"><i class="fas fa-expand"></i></button>
-        </div>
-      </div>
-      <div id="markdown-preview" class="markdown-preview"></div>
     </section>
     <div class="resizer" id="resizer-2"></div>
     <!-- AI Chat Panel -->

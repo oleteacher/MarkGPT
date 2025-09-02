@@ -447,8 +447,8 @@ body.dark {
 /* Container Layout */
 .container {
     display: grid;
-    /* Set minimum width of 250px for each panel */
-    grid-template-columns: 250px 6px 1.5fr 6px 1fr 6px 350px;
+    /* Updated for new layout: folder | resizer | editor-preview | resizer | chat */
+    grid-template-columns: 250px 6px 1fr 6px 350px;
     gap: 0;
     flex: 1;
     overflow: hidden;
@@ -457,6 +457,172 @@ body.dark {
     background: var(--sidebar-bg);
     background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.01) 100%);
     box-shadow: inset -1px 0 0 var(--border), 0 2px 8px var(--shadow);
+}
+
+.panel-folder {
+    height: calc(100vh - 48px); /* Almost full height minus header */
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-editor-preview {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 48px); /* Almost full height minus header */
+    overflow: hidden;
+}
+
+.editor-preview-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+
+.panel-markdown, .panel-preview {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-width: 200px;
+}
+
+.internal-resizer {
+    width: 6px;
+    background: var(--border);
+    cursor: col-resize;
+    z-index: 20;
+    transition: background 0.2s;
+    margin: 0;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.internal-resizer:hover {
+    background: var(--accent);
+}
+
+.tabs-bar {
+    order: -1; /* Move tabs bar to top inside editor-preview container */
+    background: var(--header-bg);
+    padding: 0 0.75rem;
+    border-bottom: 1px solid var(--border);
+    gap: 0.25rem;
+    box-shadow: 0 1px 3px var(--shadow);
+    display: flex;
+    align-items: center;
+}
+
+.tabs {
+    display: flex;
+    gap: 0.125rem;
+    overflow-x: auto;
+    padding: 0.25rem 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.8rem 0.4rem 1rem;
+    background: transparent;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    border: 1px solid transparent;
+    border-bottom: none;
+    position: relative;
+    transition: all 0.15s ease;
+    user-select: none;
+    min-width: 120px;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tab:hover {
+    background: var(--selection);
+    color: var(--text);
+}
+
+.tab.active {
+    background: var(--editor-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-bottom: 1px solid var(--editor-bg);
+    box-shadow: 0 1px 3px var(--shadow);
+    margin-bottom: -1px;
+}
+
+.tab .close {
+    margin-left: 0.5rem;
+    font-size: 1rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0.1rem;
+    line-height: 1;
+    transition: all 0.15s ease;
+    border-radius: 2px;
+    position: relative;
+    right: 0;
+    top: 0;
+    opacity: 0.6;
+    flex-shrink: 0;
+}
+
+.tab:hover .close {
+    opacity: 1;
+}
+
+.tab .close:hover {
+    color: #e11d48;
+    background: rgba(225, 29, 72, 0.1);
+}
+
+.tab.active .close {
+    opacity: 0.8;
+}
+
+/* Unsaved indicator */
+.tab .unsaved {
+  color: #e11d48;
+  margin-left: 0.25rem;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+/* Add-tab button */
+.add-tab {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  font-size: 1rem;
+  color: var(--text-secondary);
+  border-radius: 3px;
+  transition: all 0.15s ease;
+  margin-left: 0.25rem;
+}
+
+.add-tab:hover {
+  background: var(--selection);
+  color: var(--accent);
+}
+
+.add-tab:active {
+  background: var(--accent);
+  color: #fff;
+  transform: scale(0.95);
 }
 
 .resizer {
@@ -1346,128 +1512,7 @@ body {
   -webkit-text-rendering: optimizeLegibility;
 }
 
-/* Tabs bar */
-.tabs-bar {
-  display: flex;
-  align-items: center;
-  background: var(--header-bg);
-  padding: 0 0.75rem;
-  border-bottom: 1px solid var(--border);
-  gap: 0.25rem;
-  box-shadow: 0 1px 3px var(--shadow);
-}
 
-.tabs {
-  display: flex;
-  gap: 0.125rem;
-  overflow-x: auto;
-  padding: 0.25rem 0;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.tabs::-webkit-scrollbar {
-  display: none;
-}
-
-.tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.8rem 0.4rem 1rem;
-  background: transparent;
-  border-radius: 6px 6px 0 0;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  border: 1px solid transparent;
-  border-bottom: none;
-  position: relative;
-  transition: all 0.15s ease;
-  user-select: none;
-  min-width: 120px;
-  max-width: 200px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tab:hover {
-  background: var(--selection);
-  color: var(--text);
-}
-
-.tab.active {
-  background: var(--editor-bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-bottom: 1px solid var(--editor-bg);
-  box-shadow: 0 1px 3px var(--shadow);
-  margin-bottom: -1px;
-}
-
-.tab .close {
-  margin-left: 0.5rem;
-  font-size: 1rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0.1rem;
-  line-height: 1;
-  transition: all 0.15s ease;
-  border-radius: 2px;
-  position: relative;
-  right: 0;
-  top: 0;
-  opacity: 0.6;
-  flex-shrink: 0;
-}
-
-.tab:hover .close {
-  opacity: 1;
-}
-
-.tab .close:hover {
-  color: #e11d48;
-  background: rgba(225, 29, 72, 0.1);
-}
-
-.tab.active .close {
-  opacity: 0.8;
-}
-
-/* Unsaved indicator */
-.tab .unsaved {
-  color: #e11d48;
-  margin-left: 0.25rem;
-  font-weight: bold;
-  flex-shrink: 0;
-}
-
-/* Add-tab button */
-.add-tab {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 0.4rem 0.6rem;
-  font-size: 1rem;
-  color: var(--text-secondary);
-  border-radius: 3px;
-  transition: all 0.15s ease;
-  margin-left: 0.25rem;
-}
-
-.add-tab:hover {
-  background: var(--selection);
-  color: var(--accent);
-}
-
-.add-tab:active {
-  background: var(--accent);
-  color: #fff;
-  transform: scale(0.95);
-}
 
 /* Text Selection Control */
 /* Disable text selection globally */
