@@ -59,8 +59,27 @@ const openFolderButton = document.getElementById(
 const folderTreeContainer = document.getElementById(
   "folder-tree",
 ) as HTMLDivElement;
+const openFolderBigContainer = document.getElementById(
+  "open-folder-big",
+) as HTMLDivElement;
+const openFolderBigButton = document.getElementById(
+  "open-folder-big-btn",
+) as HTMLButtonElement;
 
 let currentFolderPath: string | null = null;
+
+// Function to toggle big open folder button visibility
+function toggleBigOpenFolderButton() {
+  if (openFolderBigContainer) {
+    if (currentFolderPath) {
+      // Folder is open, hide big button
+      openFolderBigContainer.style.display = "none";
+    } else {
+      // No folder open, show big button
+      openFolderBigContainer.style.display = "flex";
+    }
+  }
+}
 
 // Function to check if a file is already open
 function isFileAlreadyOpen(filePath: string): boolean {
@@ -228,6 +247,33 @@ if (openFolderButton) {
           if (statusMsg)
             statusMsg.textContent = `Opened folder: ${currentFolderPath}`;
         }
+        toggleBigOpenFolderButton();
+      }
+    } catch (err) {
+      console.error("Error opening folder:", err);
+      if (statusMsg) statusMsg.textContent = `Error opening folder`;
+    }
+  });
+}
+
+// Big open folder button click handler
+if (openFolderBigButton) {
+  openFolderBigButton.addEventListener("click", async () => {
+    try {
+      const selectedFolder = await openFolderDialog({
+        directory: true,
+        multiple: false,
+        recursive: false,
+      });
+
+      if (selectedFolder && typeof selectedFolder === "string") {
+        currentFolderPath = selectedFolder;
+        if (folderTreeContainer) {
+          await createFolderTree(currentFolderPath, folderTreeContainer);
+          if (statusMsg)
+            statusMsg.textContent = `Opened folder: ${currentFolderPath}`;
+        }
+        toggleBigOpenFolderButton();
       }
     } catch (err) {
       console.error("Error opening folder:", err);
@@ -1898,3 +1944,6 @@ if (document.readyState === "loading") {
 } else {
   initializeApplication();
 }
+
+// Initialize big open folder button visibility
+toggleBigOpenFolderButton();
