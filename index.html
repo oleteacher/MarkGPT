@@ -44,7 +44,7 @@
       <button title="Edit Markdown" id="toolbar-edit"><i class="fas fa-edit"></i></button>
       <button title="Link" id="toolbar-link"><i class="fas fa-link"></i></button>
       <button title="Image" id="toolbar-image"><i class="fas fa-image"></i></button>
-      <button title="Suggest Edit" id="toolbar-suggest"><i class="fas fa-magic"></i></button>
+
     </div>
     <div class="theme-toggle">
       <select id="ollama-model-select" title="Select AI Model"></select>
@@ -111,18 +111,7 @@
     <button id="selection-edit-ai" title="Edit selected text with AI"><i class="fas fa-magic"></i></button>
   </div>
 
-  <div id="ai-suggest-modal" class="modal">
-    <div class="modal-content">
-      <span class="close" id="close-suggest-modal">&times;</span>
-      <h3>AI Suggestion</h3>
-      <input id="ai-suggest-prompt" type="text" placeholder="Describe the edit you want (e.g. 'make it concise')" />
-      <textarea id="ai-suggest-text" readonly></textarea>
-      <div class="modal-actions">
-        <button id="accept-suggest" class="accept">Accept</button>
-        <button id="reject-suggest" class="reject">Reject</button>
-      </div>
-    </div>
-  </div>
+
 
   <!-- Modal for Selected Text AI Editing -->
   <div id="selection-ai-modal" class="modal">
