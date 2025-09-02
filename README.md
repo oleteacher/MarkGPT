@@ -2,7 +2,8 @@
 
 <center>
 
-![MarkGPT Preview](./assets/image.png)
+<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/6930fe72-9eb0-4a37-a321-d40c0caf57df" />
+
 
 
 [![Tauri](https://img.shields.io/badge/Tauri-2.0.0-24C8DB?style=for-the-badge&logo=tauri)](https://tauri.app/)
