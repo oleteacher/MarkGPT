@@ -1405,3 +1405,46 @@ body {
   color: #fff;
   transform: scale(0.95);
 }
+
+/* Text Selection Control */
+/* Disable text selection globally */
+html, body {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Enable text selection in AI chat */
+.chat-history {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+#chat-box {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+/* Enable text selection in markdown preview */
+.markdown-preview {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+/* Enable text selection in selection modal and toolbar */
+#selection-ai-modal,
+#selection-ai-response,
+#selected-text-preview,
+.selection-toolbar {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
