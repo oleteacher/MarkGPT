@@ -2,8 +2,8 @@
 
 <center>
 
-<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/6930fe72-9eb0-4a37-a321-d40c0caf57df" />
 
+<img width="1822" height="1121" alt="image" src="https://github.com/user-attachments/assets/cae6837a-b10f-4ba5-b946-01f27cabd610" />
 
 
 [![Tauri](https://img.shields.io/badge/Tauri-2.0.0-24C8DB?style=for-the-badge&logo=tauri)](https://tauri.app/)
