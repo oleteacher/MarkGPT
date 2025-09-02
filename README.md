@@ -22,6 +22,10 @@ MarkGPT is a sleek, powerful desktop application built with [Tauri](https://taur
 
 ### Prerequisites
 - Ollama and an AI model
+- You can use any ollama AI model, but, recommended to use MarkGPT's AI, you can run:
+```sh
+ollama pull MarkGPT-Editor/MarkGPTAI
+```
 
 ### Download for your platform:
 
