@@ -35,11 +35,163 @@ marked.use({
   }]
 });
 
+import { open as openFolderDialog } from '@tauri-apps/plugin-dialog';
+import { readDir, BaseDirectory } from '@tauri-apps/plugin-fs';
+
 // UI Elements
 const markdownInput = document.getElementById('markdown-input') as HTMLTextAreaElement;
 const markdownPreview = document.getElementById('markdown-preview') as HTMLDivElement;
 const tabsContainer = document.getElementById('tabs') as HTMLDivElement;
 const statusMsg = document.getElementById('status-msg') as HTMLSpanElement;
+
+const openFolderButton = document.getElementById('open-folder') as HTMLButtonElement;
+const folderTreeContainer = document.getElementById('folder-tree') as HTMLDivElement;
+
+let currentFolderPath: string | null = null;
+
+// Function to check if a file is already open
+function isFileAlreadyOpen(filePath: string): boolean {
+  return allTabs.some(tab => tab.path === filePath);
+}
+
+// Function to check if a file is a text file (not binary)
+function isTextFile(fileName: string): boolean {
+  const textExtensions = ['.txt', '.md', '.js', '.ts', '.json', '.html', '.css', '.py', '.java', '.cpp', '.c', '.h', '.xml', '.yml', '.yaml', '.ini', '.cfg', '.log'];
+  const ext = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+  return textExtensions.includes(ext);
+}
+
+// Function to create folder tree HTML recursively
+async function createFolderTree(path: string, container: HTMLDivElement) {
+  container.innerHTML = ''; // Clear existing content
+
+  try {
+    const entries = await readDir(path);
+
+    for (const entry of entries) {
+      const item = document.createElement('div');
+      item.className = 'folder-item';
+
+      if (entry.isDirectory) {
+        // Folder
+        item.classList.add('folder');
+        item.innerHTML = `<i class="fas fa-folder"></i> ${entry.name}`;
+
+        const subContainer = document.createElement('div');
+        subContainer.className = 'folder-subtree';
+        subContainer.style.display = 'none';
+
+        item.addEventListener('click', async (event) => {
+          event.stopPropagation(); // Prevent event bubbling
+
+          if (subContainer.style.display === 'none') {
+            subContainer.style.display = 'block';
+            item.innerHTML = `<i class="fas fa-folder-open"></i> ${entry.name}`;
+            // Load children if not already loaded
+            if (subContainer.children.length === 0) {
+              const fullPath = `${path}/${entry.name}`;
+              console.log('Loading folder:', fullPath);
+              await createFolderTree(fullPath, subContainer);
+            }
+          } else {
+            subContainer.style.display = 'none';
+            item.innerHTML = `<i class="fas fa-folder"></i> ${entry.name}`;
+          }
+        });
+
+        container.appendChild(item);
+        container.appendChild(subContainer);
+      } else {
+        // File
+        item.classList.add('file');
+        const isImage = /\.(png|jpg|jpeg|gif|svg|webp)$/i.test(entry.name);
+        const isText = isTextFile(entry.name);
+        item.innerHTML = `<i class="fas fa-${isImage ? 'image' : 'file'}"></i> ${entry.name}`;
+
+        // Click to open file in new tab or insert image
+        item.addEventListener('click', async () => {
+          try {
+            const fullPath = `${path}/${entry.name}`;
+
+            if (isImage) {
+              // Insert image into markdown
+              const relativePath = fullPath.replace(currentFolderPath!, '');
+              const imageMarkdown = `![${entry.name}](${relativePath})`;
+              if (markdownInput) {
+                const cursorPos = markdownInput.selectionStart;
+                const currentValue = markdownInput.value;
+                const newValue = currentValue.slice(0, cursorPos) + imageMarkdown + currentValue.slice(cursorPos);
+                markdownInput.value = newValue;
+                markdownInput.focus();
+                markdownInput.setSelectionRange(cursorPos + imageMarkdown.length, cursorPos + imageMarkdown.length);
+
+                // Update preview
+                const parseResult = marked.parse(newValue);
+                if (typeof parseResult === 'string') {
+                  if (markdownPreview) markdownPreview.innerHTML = parseResult;
+                } else {
+                  parseResult.then(html => {
+                    if (markdownPreview) markdownPreview.innerHTML = html;
+                  });
+                }
+                renderMathFormulas();
+                updateWordAndCharacterCount();
+              }
+            } else if (isText) {
+              // Check if file is already open
+              if (isFileAlreadyOpen(fullPath)) {
+                // Switch to existing tab
+                const existingTabIndex = allTabs.findIndex(tab => tab.path === fullPath);
+                if (existingTabIndex !== -1) {
+                  switchToTab(existingTabIndex);
+                }
+              } else {
+                // Open text file in new tab
+                const content = await readTextFile(fullPath);
+                createNewTab(fullPath, content, entry.name, true);
+              }
+            } else {
+              // Binary file - show message
+              if (statusMsg) statusMsg.textContent = `Cannot open binary file: ${entry.name}`;
+            }
+          } catch (err) {
+            console.error('Error reading file:', err);
+            if (statusMsg) statusMsg.textContent = `Error reading file: ${entry.name}`;
+          }
+        });
+
+        container.appendChild(item);
+      }
+    }
+  } catch (err) {
+    console.error('Error reading directory:', err);
+    if (statusMsg) statusMsg.textContent = `Error reading directory`;
+  }
+}
+
+// Open folder dialog and load folder tree
+if (openFolderButton) {
+  openFolderButton.addEventListener('click', async () => {
+    try {
+      const selectedFolder = await openFolderDialog({
+        directory: true,
+        multiple: false,
+        recursive: false,
+      });
+
+      if (selectedFolder && typeof selectedFolder === 'string') {
+        currentFolderPath = selectedFolder;
+        if (folderTreeContainer) {
+          await createFolderTree(currentFolderPath, folderTreeContainer);
+          if (statusMsg) statusMsg.textContent = `Opened folder: ${currentFolderPath}`;
+        }
+      }
+    } catch (err) {
+      console.error('Error opening folder:', err);
+      if (statusMsg) statusMsg.textContent = `Error opening folder`;
+    }
+  });
+}
 
 // Selection toolbar and modal elements
 const selectionToolbar = document.getElementById('selection-toolbar') as HTMLDivElement;
@@ -1296,7 +1448,7 @@ function setupPanelResizing(): void {
         const currentColumns = getComputedStyle(container).gridTemplateColumns.split(' ');
 
         if (resizerIndex === 0) {
-          // First resizer (between chat and editor)
+          // First resizer (between folder and editor)
           const currentLeftWidth = parseFloat(currentColumns[0]);
           const currentMiddleWidth = parseFloat(currentColumns[2]);
 
@@ -1304,14 +1456,14 @@ function setupPanelResizing(): void {
           let newMiddleWidth = currentMiddleWidth - deltaX;
 
           // Minimum width constraints
-          const minimumPanelWidth = 250;
-          const maximumLeftWidth = containerWidth - (2 * minimumPanelWidth) - 12; // 12px for resizers
+          const minimumPanelWidth = 200;
+          const maximumLeftWidth = containerWidth - (3 * minimumPanelWidth) - 18; // 18px for resizers
 
           newLeftWidth = Math.max(minimumPanelWidth, Math.min(maximumLeftWidth, newLeftWidth));
           newMiddleWidth = Math.max(minimumPanelWidth, currentMiddleWidth - (newLeftWidth - currentLeftWidth));
 
-          container.style.gridTemplateColumns = `${newLeftWidth}px 6px ${newMiddleWidth}px 6px 1fr`;
-        } else {
+          container.style.gridTemplateColumns = `${newLeftWidth}px 6px ${newMiddleWidth}px 6px ${currentColumns[4]} 6px ${currentColumns[6]}`;
+        } else if (resizerIndex === 1) {
           // Second resizer (between editor and preview)
           const currentMiddleWidth = parseFloat(currentColumns[2]);
           const currentRightWidth = parseFloat(currentColumns[4]);
@@ -1321,12 +1473,28 @@ function setupPanelResizing(): void {
 
           // Minimum width constraints
           const minimumPanelWidth = 250;
-          const maximumMiddleWidth = containerWidth - (2 * minimumPanelWidth) - 12;
+          const maximumMiddleWidth = containerWidth - (3 * minimumPanelWidth) - 18;
 
           newMiddleWidth = Math.max(minimumPanelWidth, Math.min(maximumMiddleWidth, newMiddleWidth));
           newRightWidth = Math.max(minimumPanelWidth, currentRightWidth - (newMiddleWidth - currentMiddleWidth));
 
-          container.style.gridTemplateColumns = `${currentColumns[0]} 6px ${newMiddleWidth}px 6px ${newRightWidth}px`;
+          container.style.gridTemplateColumns = `${currentColumns[0]} 6px ${newMiddleWidth}px 6px ${newRightWidth}px 6px ${currentColumns[6]}`;
+        } else {
+          // Third resizer (between preview and chat)
+          const currentRightWidth = parseFloat(currentColumns[4]);
+          const currentChatWidth = parseFloat(currentColumns[6]);
+
+          let newRightWidth = currentRightWidth + deltaX;
+          let newChatWidth = currentChatWidth - deltaX;
+
+          // Minimum width constraints
+          const minimumPanelWidth = 250;
+          const maximumRightWidth = containerWidth - (3 * minimumPanelWidth) - 18;
+
+          newRightWidth = Math.max(minimumPanelWidth, Math.min(maximumRightWidth, newRightWidth));
+          newChatWidth = Math.max(minimumPanelWidth, currentChatWidth - (newRightWidth - currentRightWidth));
+
+          container.style.gridTemplateColumns = `${currentColumns[0]} 6px ${currentColumns[2]} 6px ${newRightWidth}px 6px ${newChatWidth}px`;
         }
 
         startMouseX = moveEvent.clientX;

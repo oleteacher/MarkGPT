@@ -62,19 +62,18 @@
   </div>
 
   <main class="container">
-    <!-- AI Chat Panel -->
-    <section class="panel panel-chat">
+    <!-- Folder Explorer Panel -->
+    <section class="panel panel-folder">
       <div class="panel-header">
-        <i class="fas fa-robot"></i>
-        <span>AI Chat</span>
+        <i class="fas fa-folder"></i>
+        <span>Explorer</span>
+        <div class="folder-controls">
+          <button id="open-folder" title="Open Folder"><i class="fas fa-folder-open"></i></button>
+        </div>
       </div>
-      <div class="chat-history" id="chat-history"></div>
-      <div class="chat-input">
-        <textarea id="chat-box" rows="2" placeholder="Type your message... (Shift+Enter for newline)"></textarea>
-        <button id="send-chat"><i class="fas fa-paper-plane"></i></button>
-      </div>
+      <div id="folder-tree" class="folder-tree"></div>
     </section>
-    <div class="resizer" id="resizer-1"></div>
+    <div class="resizer" id="resizer-0"></div>
     <!-- Markdown Editor Panel -->
     <section class="panel panel-markdown">
       <div class="panel-header">
@@ -87,7 +86,7 @@
         <span id="word-count">0 words</span>
       </div>
     </section>
-    <div class="resizer" id="resizer-2"></div>
+    <div class="resizer" id="resizer-1"></div>
     <!-- Markdown Preview Panel -->
     <section class="panel panel-preview">
       <div class="panel-header">
@@ -99,6 +98,19 @@
         </div>
       </div>
       <div id="markdown-preview" class="markdown-preview"></div>
+    </section>
+    <div class="resizer" id="resizer-2"></div>
+    <!-- AI Chat Panel -->
+    <section class="panel panel-chat">
+      <div class="panel-header">
+        <i class="fas fa-robot"></i>
+        <span>AI Chat</span>
+      </div>
+      <div class="chat-history" id="chat-history"></div>
+      <div class="chat-input">
+        <textarea id="chat-box" rows="2" placeholder="Type your message... (Shift+Enter for newline)"></textarea>
+        <button id="send-chat"><i class="fas fa-paper-plane"></i></button>
+      </div>
     </section>
   </main>
 

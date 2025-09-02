@@ -448,7 +448,7 @@ body.dark {
 .container {
     display: grid;
     /* Set minimum width of 250px for each panel */
-    grid-template-columns: 350px 6px 1.5fr 6px 1fr;
+    grid-template-columns: 250px 6px 1.5fr 6px 1fr 6px 350px;
     gap: 0;
     flex: 1;
     overflow: hidden;
@@ -529,6 +529,69 @@ body.dark {
     bottom: 0;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
     pointer-events: none;
+}
+
+/* Folder Explorer Panel */
+.panel-folder {
+    background: var(--sidebar-bg);
+}
+
+.folder-tree {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem;
+    font-family: 'Segoe UI', 'SF Pro Text', Roboto, sans-serif;
+    font-size: 0.9rem;
+}
+
+.folder-item {
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    user-select: none;
+}
+
+.folder-item:hover {
+    background: var(--selection);
+}
+
+.folder-item.folder {
+    font-weight: 500;
+}
+
+.folder-item.file {
+    padding-left: 1rem;
+}
+
+.folder-subtree {
+    margin-left: 1rem;
+    border-left: 1px solid var(--border);
+    padding-left: 0.5rem;
+}
+
+.folder-controls button {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-left: 0.5rem;
+    color: var(--text-secondary);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+}
+
+.folder-controls button:hover {
+    background: var(--selection);
+    color: var(--accent);
 }
 
 /* Chat Panel */
