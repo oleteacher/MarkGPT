@@ -301,11 +301,20 @@ body.dark {
   font-size: 0.9rem;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: space-between;
   user-select: none;
   position: relative;
   border-radius: 6px;
   margin: 2px 4px;
+}
+
+.shortcut {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-left: auto;
+  padding-left: 1rem;
+  opacity: 0.7;
 }
 
 .dropdown-item:hover {

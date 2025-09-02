@@ -1763,15 +1763,125 @@ function setupPanelResizing(): void {
   }
 }
 
+// Cross-platform keyboard shortcut handling
 document.addEventListener("keydown", (event) => {
-  if (event.ctrlKey) {
-    if (event.key === "z") {
-      undo();
-      event.preventDefault(); // Prevent default undo action
-    } else if (event.key === "y") {
-      redo();
-      event.preventDefault(); // Prevent default redo action
+  // Detect platform for cross-platform shortcuts
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  const cmdOrCtrl = isMac ? event.metaKey : event.ctrlKey;
+
+  // File menu shortcuts
+  if (cmdOrCtrl) {
+    switch (event.key.toLowerCase()) {
+      case 'n':
+        event.preventDefault();
+        newFile();
+        break;
+      case 'o':
+        if (event.shiftKey) {
+          event.preventDefault();
+          const openFolderButton = document.getElementById("open-folder") as HTMLButtonElement;
+          if (openFolderButton) openFolderButton.click();
+        } else {
+          event.preventDefault();
+          openFile();
+        }
+        break;
+      case 's':
+        event.preventDefault();
+        if (event.shiftKey) {
+          saveFileAs();
+        } else {
+          saveFile();
+        }
+        break;
+      case 'e':
+        event.preventDefault();
+        if (event.shiftKey) {
+          exportPdf();
+        } else {
+          exportHtml();
+        }
+        break;
+      case 'q':
+        event.preventDefault();
+        exitApp();
+        break;
+      case 't':
+        if (event.shiftKey) {
+          event.preventDefault();
+          const themeToggle = document.getElementById("toggle-theme") as HTMLButtonElement;
+          if (themeToggle) themeToggle.click();
+        } else {
+          event.preventDefault();
+          newFile();
+        }
+        break;
     }
+  }
+
+  // Edit menu shortcuts
+  if (cmdOrCtrl) {
+    if (event.key === "z" && !event.shiftKey) {
+      event.preventDefault();
+      undo();
+    } else if ((event.key === "y") || (event.key === "z" && event.shiftKey)) {
+      event.preventDefault();
+      redo();
+    }
+  }
+
+  // Toolbar formatting shortcuts
+  if (cmdOrCtrl) {
+    switch (event.key.toLowerCase()) {
+      case 'b':
+        event.preventDefault();
+        const boldButton = document.getElementById("toolbar-bold");
+        if (boldButton) boldButton.click();
+        break;
+      case 'i':
+        if (event.shiftKey) {
+          event.preventDefault();
+          const imageButton = document.getElementById("toolbar-image");
+          if (imageButton) imageButton.click();
+        } else {
+          event.preventDefault();
+          const italicButton = document.getElementById("toolbar-italic");
+          if (italicButton) italicButton.click();
+        }
+        break;
+      case 'h':
+        event.preventDefault();
+        const headingButton = document.getElementById("toolbar-heading");
+        if (headingButton) headingButton.click();
+        break;
+      case 'l':
+        event.preventDefault();
+        const listButton = document.getElementById("toolbar-list");
+        if (listButton) listButton.click();
+        break;
+      case '`':
+        event.preventDefault();
+        const codeButton = document.getElementById("toolbar-code");
+        if (codeButton) codeButton.click();
+        break;
+      case 'q':
+        event.preventDefault();
+        const quoteButton = document.getElementById("toolbar-quote");
+        if (quoteButton) quoteButton.click();
+        break;
+      case 'k':
+        event.preventDefault();
+        const linkButton = document.getElementById("toolbar-link");
+        if (linkButton) linkButton.click();
+        break;
+    }
+  }
+
+  // Other shortcuts
+  if (event.key === "F11") {
+    event.preventDefault();
+    const fullscreenButton = document.getElementById("fullscreen-preview");
+    if (fullscreenButton) fullscreenButton.click();
   }
 });
 

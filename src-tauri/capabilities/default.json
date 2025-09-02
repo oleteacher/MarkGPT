@@ -19,6 +19,7 @@
     "fs:allow-app-meta-recursive",
     "fs:allow-app-read",
     "fs:allow-app-read-recursive",
-    "fs:allow-app-write-recursive"
+    "fs:allow-app-write-recursive",
+    "process:default"
   ]
 }

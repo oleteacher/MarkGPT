@@ -15,27 +15,27 @@
           <span>File</span>
           <div class="dropdown-menu">
             <div class="dropdown-item" id="menu-new">
-              <i class="fas fa-file"></i> New
+              <i class="fas fa-file"></i> New <span class="shortcut">Ctrl+N</span>
             </div>
             <div class="dropdown-item" id="menu-open">
-              <i class="fas fa-folder-open"></i> Open...
+              <i class="fas fa-folder-open"></i> Open... <span class="shortcut">Ctrl+O</span>
             </div>
             <div class="dropdown-item" id="menu-save">
-              <i class="fas fa-save"></i> Save
+              <i class="fas fa-save"></i> Save <span class="shortcut">Ctrl+S</span>
             </div>
             <div class="dropdown-item" id="menu-save-as">
-              <i class="fas fa-file-export"></i> Save As...
+              <i class="fas fa-file-export"></i> Save As... <span class="shortcut">Ctrl+Shift+S</span>
             </div>
             <div class="dropdown-divider"></div>
             <div class="dropdown-item" id="menu-export-html">
-              <i class="fas fa-code"></i> Export as HTML
+              <i class="fas fa-code"></i> Export as HTML <span class="shortcut">Ctrl+E</span>
             </div>
             <div class="dropdown-item" id="menu-export-pdf">
-              <i class="fas fa-file-pdf"></i> Export as PDF
+              <i class="fas fa-file-pdf"></i> Export as PDF <span class="shortcut">Ctrl+Shift+E</span>
             </div>
             <div class="dropdown-divider"></div>
             <div class="dropdown-item" id="menu-exit">
-              <i class="fas fa-sign-out-alt"></i> Exit
+              <i class="fas fa-sign-out-alt"></i> Exit <span class="shortcut">Ctrl+Q</span>
             </div>
           </div>
         </div>
@@ -43,46 +43,46 @@
           <span>Edit</span>
           <div class="dropdown-menu">
             <div class="dropdown-item" id="menu-undo" disabled>
-              <i class="fas fa-undo"></i> Undo
+              <i class="fas fa-undo"></i> Undo <span class="shortcut">Ctrl+Z</span>
             </div>
             <div class="dropdown-item" id="menu-redo" disabled>
-              <i class="fas fa-redo"></i> Redo
+              <i class="fas fa-redo"></i> Redo <span class="shortcut">Ctrl+Y</span>
             </div>
           </div>
         </div>
       </div>
       <div class="menu-item toolbar">
-        <button title="Bold" id="toolbar-bold">
+        <button title="Bold (Ctrl+B)" id="toolbar-bold">
           <i class="fas fa-bold"></i>
         </button>
-        <button title="Italic" id="toolbar-italic">
+        <button title="Italic (Ctrl+I)" id="toolbar-italic">
           <i class="fas fa-italic"></i>
         </button>
-        <button title="Heading" id="toolbar-heading">
+        <button title="Heading (Ctrl+H)" id="toolbar-heading">
           <i class="fas fa-heading"></i>
         </button>
-        <button title="List" id="toolbar-list">
+        <button title="List (Ctrl+L)" id="toolbar-list">
           <i class="fas fa-list-ul"></i>
         </button>
-        <button title="Code" id="toolbar-code">
+        <button title="Code (Ctrl+`)" id="toolbar-code">
           <i class="fas fa-code"></i>
         </button>
-        <button title="Quote" id="toolbar-quote">
+        <button title="Quote (Ctrl+Q)" id="toolbar-quote">
           <i class="fas fa-quote-right"></i>
         </button>
         <button title="Edit Markdown" id="toolbar-edit">
           <i class="fas fa-edit"></i>
         </button>
-        <button title="Link" id="toolbar-link">
+        <button title="Link (Ctrl+K)" id="toolbar-link">
           <i class="fas fa-link"></i>
         </button>
-        <button title="Image" id="toolbar-image">
+        <button title="Image (Ctrl+Shift+I)" id="toolbar-image">
           <i class="fas fa-image"></i>
         </button>
       </div>
       <div class="theme-toggle">
         <select id="ollama-model-select" title="Select AI Model"></select>
-        <button id="toggle-theme" title="Toggle theme">
+        <button id="toggle-theme" title="Toggle theme (Ctrl+Shift+T)">
           <i class="fas fa-sun"></i>
           <i class="fas fa-moon"></i>
         </button>
