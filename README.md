@@ -35,10 +35,11 @@ MarkGPT is a sleek, powerful desktop application built with [Tauri](https://taur
 ## 🚀 Quick Start
 
 ### Prerequisites
+- Ollama and an AI model
 
-- [Node.js](https://nodejs.org/) (v18 or later)
-- [Rust](https://rustup.rs/) (latest stable)
-- [Bun](https://bun.sh/) (recommended for faster builds)
+### Download for your platform:
+
+https://github.com/MarkGPT-Editor/MarkGPT/releases/tag/app-v0.1.0
 
 ### Installation
 
