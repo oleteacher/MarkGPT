@@ -2,9 +2,7 @@
 
 <center>
 
-
 <img width="1822" height="1121" alt="image" src="https://github.com/user-attachments/assets/cae6837a-b10f-4ba5-b946-01f27cabd610" />
-
 
 [![Tauri](https://img.shields.io/badge/Tauri-2.0.0-24C8DB?style=for-the-badge&logo=tauri)](https://tauri.app/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6.2-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
@@ -21,8 +19,10 @@ MarkGPT is a sleek, powerful desktop application built with [Tauri](https://taur
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Ollama and an AI model
 - You can use any ollama AI model, but, recommended to use MarkGPT's AI, you can run:
+
 ```sh
 ollama pull MarkGPT-Editor/MarkGPTAI
 ```
@@ -30,7 +30,6 @@ ollama pull MarkGPT-Editor/MarkGPTAI
 ### Download for your platform:
 
 https://github.com/MarkGPT-Editor/MarkGPT/releases/tag/app-v0.1.0
-
 
 ## 🌟 Features
 
@@ -49,17 +48,20 @@ https://github.com/MarkGPT-Editor/MarkGPT/releases/tag/app-v0.1.0
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/yourusername/markgpt.git
    cd markgpt
    ```
 
 2. **Install dependencies**
+
    ```bash
    bun install
    ```
 
 3. **Run in development mode**
+
    ```bash
    bun run tauri dev
    ```
