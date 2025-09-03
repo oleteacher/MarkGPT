@@ -28,7 +28,12 @@ export function setupMenuHandlers(): void {
   document.getElementById("menu-redo")?.addEventListener("click", redo);
 }
 
+let keyboardShortcutsInitialized = false;
+
 export function setupKeyboardShortcuts(): void {
+  if (keyboardShortcutsInitialized) return;
+  keyboardShortcutsInitialized = true;
+
   document.addEventListener("keydown", (event) => {
     const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
     const cmdOrCtrl = isMac ? event.metaKey : event.ctrlKey;

@@ -1,5 +1,7 @@
 import { markdownInput } from "../components/uiElements";
 
+let textFormattingButtonsInitialized = false;
+
 export function wrapSelectedText(
   beforeText: string,
   afterText: string,
@@ -31,6 +33,8 @@ export function wrapSelectedText(
 }
 
 export function setupTextFormattingButtons(): void {
+  if (textFormattingButtonsInitialized) return;
+  textFormattingButtonsInitialized = true;
   const boldButton = document.getElementById("toolbar-bold");
   if (boldButton) {
     boldButton.addEventListener("click", () =>
