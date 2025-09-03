@@ -6,225 +6,184 @@ import {
 import { renderMathFormulas } from "../markdown/renderer";
 import { marked } from "marked";
 import { getSelectedModel } from "./modelSelection";
+import { Ollama } from "ollama/browser";
+
+const ollama = new Ollama({ host: "http://127.0.0.1:11434" });
 
 async function streamAiResponse(
   userPrompt: string,
   chatHistoryContainer: HTMLDivElement,
 ): Promise<void> {
-  const response = await fetch("http://127.0.0.1:11434/api/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: getSelectedModel(),
-      prompt: userPrompt,
-      stream: true,
-    }),
-  });
-
-  if (!response.ok || !response.body) {
-    throw new Error(
-      `AI API request failed: ${response.status} ${response.statusText}`,
-    );
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
   const aiMessageDiv = document.createElement("div");
   aiMessageDiv.className = "msg ai";
+  aiMessageDiv.innerHTML = `
+    <details>
+      <summary>🤔 Model Thinking</summary>
+      <pre class="think-content" style="white-space: pre-wrap; margin: 0;"></pre>
+    </details>
+    <div class="ai-response">
+      <i class="fas fa-robot"></i>
+      <div class="ai-text"></div>
+    </div>
+    <button class="copy-btn" style="margin: 0.5em 0; padding: 0.3em 1em; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer;">
+      <i class="fas fa-copy"></i> Copy Response
+    </button>
+  `;
 
-  const thinkingDetails = document.createElement("details");
-  const thinkingSummary = document.createElement("summary");
-  thinkingSummary.textContent = "🤔 Model Thinking";
+  chatHistoryContainer.appendChild(aiMessageDiv);
 
-  const thinkingContent = document.createElement("pre");
-  thinkingContent.className = "think-content";
-  thinkingContent.style.whiteSpace = "pre-wrap";
-  thinkingContent.style.margin = "0";
+  const thinkingPre = aiMessageDiv.querySelector(
+    ".think-content",
+  ) as HTMLPreElement;
+  const responseDiv = aiMessageDiv.querySelector(".ai-text") as HTMLDivElement;
+  const copyBtn = aiMessageDiv.querySelector(".copy-btn") as HTMLButtonElement;
 
-  thinkingDetails.appendChild(thinkingSummary);
-  thinkingDetails.appendChild(thinkingContent);
+  let visibleContent = "";
+  let thinkingContent = "";
+  let buffer = "";
+  let insideThinkTag = false;
 
-  const responseContent = document.createElement("div");
-  responseContent.className = "ai-response";
-  responseContent.innerHTML = `<i class="fas fa-robot"></i> `;
-
-  const copyButton = document.createElement("button");
-  copyButton.className = "copy-ai-response";
-  copyButton.innerHTML = `<i class="fas fa-copy"></i> Copy Response`;
-  copyButton.style.margin = "0.5em 0 0.5em 0";
-  copyButton.style.display = "block";
-  copyButton.style.background = "var(--accent)";
-  copyButton.style.color = "#fff";
-  copyButton.style.border = "none";
-  copyButton.style.borderRadius = "4px";
-  copyButton.style.padding = "0.3em 1em";
-  copyButton.style.cursor = "pointer";
-  copyButton.style.fontSize = "0.95em";
-
-  let visibleMarkdownContent = "";
-
-  copyButton.onclick = async () => {
+  // Setup copy functionality
+  copyBtn.onclick = async () => {
     try {
-      await navigator.clipboard.writeText(visibleMarkdownContent);
-      copyButton.textContent = "Copied!";
-      setTimeout(() => {
-        copyButton.innerHTML = `<i class="fas fa-copy"></i> Copy Response`;
-      }, 1200);
+      await navigator.clipboard.writeText(visibleContent);
+      copyBtn.innerHTML = "Copied!";
+      setTimeout(
+        () => (copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy Response'),
+        1200,
+      );
     } catch {
-      copyButton.textContent = "Failed to copy";
+      copyBtn.innerHTML = "Copy failed";
     }
   };
 
-  aiMessageDiv.appendChild(thinkingDetails);
-  aiMessageDiv.appendChild(responseContent);
-  aiMessageDiv.appendChild(copyButton);
-  chatHistoryContainer.appendChild(aiMessageDiv);
-
-  let fullStreamText = "";
-  let isInsideThinkTags = false;
-  let thinkingText = "";
-
   const updateDisplay = () => {
-    responseContent.innerHTML = `
-      <i class="fas fa-robot"></i>
-      <div class="ai-text">
-        ${marked.parse(visibleMarkdownContent)}
-      </div>
-    `;
-    thinkingContent.textContent = thinkingText;
-
+    responseDiv.innerHTML = `<div class="ai-text">${marked.parse(visibleContent)}</div>`;
+    thinkingPre.textContent = thinkingContent;
     renderMathFormulas();
-
     chatHistoryContainer.scrollTop = chatHistoryContainer.scrollHeight;
   };
 
-  const processStreamText = (newText: string) => {
-    fullStreamText += newText;
+  const processChunk = (text: string) => {
+    buffer += text;
 
     while (true) {
-      const thinkOpenIndex = fullStreamText.indexOf("<think>");
-      const thinkCloseIndex = fullStreamText.indexOf("</think>");
+      const openIndex = buffer.indexOf("<think>");
+      const closeIndex = buffer.indexOf("</think>");
 
-      if (thinkOpenIndex === -1 && thinkCloseIndex === -1) {
-        if (isInsideThinkTags) {
-          thinkingText += fullStreamText;
+      if (openIndex === -1 && closeIndex === -1) {
+        // No tags found - append all to current context
+        if (insideThinkTag) {
+          thinkingContent += buffer;
         } else {
-          visibleMarkdownContent += fullStreamText;
+          visibleContent += buffer;
         }
-        fullStreamText = "";
+        buffer = "";
         break;
       }
 
+      // Find the next tag
       let nextTagIndex = -1;
-      let isOpeningTag = false;
+      let isOpenTag = false;
 
-      if (thinkOpenIndex !== -1 && thinkCloseIndex !== -1) {
-        isOpeningTag = thinkOpenIndex < thinkCloseIndex;
-        nextTagIndex = Math.min(thinkOpenIndex, thinkCloseIndex);
-      } else if (thinkOpenIndex !== -1) {
-        isOpeningTag = true;
-        nextTagIndex = thinkOpenIndex;
+      if (openIndex !== -1 && closeIndex !== -1) {
+        // Both tags present - process the earlier one
+        if (openIndex < closeIndex) {
+          nextTagIndex = openIndex;
+          isOpenTag = true;
+        } else {
+          nextTagIndex = closeIndex;
+          isOpenTag = false;
+        }
+      } else if (openIndex !== -1) {
+        // Only open tag
+        nextTagIndex = openIndex;
+        isOpenTag = true;
       } else {
-        isOpeningTag = false;
-        nextTagIndex = thinkCloseIndex;
+        // Only close tag
+        nextTagIndex = closeIndex;
+        isOpenTag = false;
       }
 
-      const textBeforeTag = fullStreamText.slice(0, nextTagIndex);
-
+      // Process text before the tag
+      const textBeforeTag = buffer.slice(0, nextTagIndex);
       if (textBeforeTag) {
-        if (isInsideThinkTags) {
-          thinkingText += textBeforeTag;
+        if (insideThinkTag) {
+          thinkingContent += textBeforeTag;
         } else {
-          visibleMarkdownContent += textBeforeTag;
+          visibleContent += textBeforeTag;
         }
       }
 
-      if (isOpeningTag) {
-        fullStreamText = fullStreamText.slice(nextTagIndex + "<think>".length);
-        isInsideThinkTags = true;
+      // Update state and buffer based on tag type
+      if (isOpenTag) {
+        insideThinkTag = true;
+        buffer = buffer.slice(nextTagIndex + 7); // Remove '<think>'
       } else {
-        fullStreamText = fullStreamText.slice(nextTagIndex + "</think>".length);
-        isInsideThinkTags = false;
+        insideThinkTag = false;
+        buffer = buffer.slice(nextTagIndex + 8); // Remove '</think>'
       }
     }
 
     updateDisplay();
   };
 
-  updateDisplay();
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-
-    for (const line of lines) {
-      if (!line.trim()) continue;
-
-      try {
-        const jsonData = JSON.parse(line);
-        if (typeof jsonData.response === "string") {
-          processStreamText(jsonData.response);
-        }
-      } catch (error) {
-        // Ignore JSON parsing errors
-      }
-    }
-  }
-
-  if (buffer.trim()) {
-    try {
-      const jsonData = JSON.parse(buffer);
-      if (typeof jsonData.response === "string") {
-        processStreamText(jsonData.response);
-      }
-    } catch {
-      processStreamText(buffer);
-    }
-  }
-
-  updateDisplay();
-}
-
-export function initializeChat(): void {
-  if (sendChatButton && chatInputBox && chatHistoryDiv) {
-    chatInputBox.addEventListener("keydown", async function (event) {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        sendChatButton.click();
-      }
+  try {
+    // Ollama.js streaming with real-time tag processing
+    const response = await ollama.chat({
+      model: getSelectedModel(),
+      messages: [{ role: "user", content: userPrompt }],
+      stream: true,
     });
 
-    sendChatButton.onclick = async function () {
-      const userMessage = chatInputBox.value.trim();
-      if (!userMessage) return;
+    // Process each chunk immediately as it arrives
+    for await (const part of response) {
+      if (part.message?.content) {
+        processChunk(part.message.content);
+      }
+    }
+  } catch (error) {
+    throw new Error(`Ollama request failed: ${error}`);
+  }
+}
 
+// Ultra-simple chat initialization
+export function initializeChat(): void {
+  if (!sendChatButton || !chatInputBox || !chatHistoryDiv) return;
+
+  const sendMessage = async () => {
+    const message = chatInputBox.value.trim();
+    if (!message) return;
+
+    // Add user message
+    chatHistoryDiv.innerHTML += `
+      <div class="msg user">
+        <i class="fas fa-user"></i> ${message.replace(/\n/g, "<br>")}
+      </div>
+    `;
+
+    chatInputBox.value = "";
+    chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
+
+    try {
+      await streamAiResponse(message, chatHistoryDiv);
+    } catch (error) {
       chatHistoryDiv.innerHTML += `
-        <div class="msg user">
-          <i class="fas fa-user"></i> ${userMessage.replace(/\n/g, "<br>")}
+        <div class="msg ai error">
+          <i class="fas fa-robot"></i> Error: ${error}
         </div>
       `;
+    }
+  };
 
-      chatInputBox.value = "";
-      chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
+  // Enter key handler
+  chatInputBox.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
 
-      try {
-        await streamAiResponse(userMessage, chatHistoryDiv);
-      } catch (error) {
-        chatHistoryDiv.innerHTML += `
-          <div class="msg ai error">
-            <i class="fas fa-robot"></i> Error: ${error}
-          </div>
-        `;
-        console.error(error);
-      }
-
-      chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
-    };
-  }
+  // Send button handler
+  sendChatButton.onclick = sendMessage;
 }

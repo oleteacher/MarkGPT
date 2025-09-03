@@ -56,10 +56,3 @@ export function initializeApplication(): void {
   // Check Ollama availability (this should be last)
   initializeOllamaCheck();
 }
-
-// Initialize when DOM is ready
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initializeApplication);
-} else {
-  initializeApplication();
-}

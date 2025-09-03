@@ -1,48 +1,30 @@
 import { modelSelectDropdown } from "../components/uiElements";
+import { Ollama } from "ollama/browser";
 
-export let selectedAiModel = "qwen3:0.6b";
+const ollama = new Ollama({ host: "http://127.0.0.1:11434" });
 
-export async function loadAvailableModels(): Promise<void> {
+let selectedModel = "";
+
+export async function loadAvailableModels() {
   try {
-    const response = await fetch("http://127.0.0.1:11434/api/tags");
-    const data = await response.json();
+    const { models } = await ollama.list();
 
-    if (Array.isArray(data.models) && modelSelectDropdown) {
-      modelSelectDropdown.innerHTML = "";
+    modelSelectDropdown.innerHTML = models
+      .map((model) => `<option value="${model.name}">${model.name}</option>`)
+      .join("");
 
-      data.models.forEach((model: any) => {
-        const option = document.createElement("option");
-        option.value = model.name;
-        option.textContent = model.name;
-        modelSelectDropdown.appendChild(option);
-      });
-
-      selectedAiModel = modelSelectDropdown.value;
-    }
-  } catch (error) {
-    if (modelSelectDropdown) {
-      modelSelectDropdown.innerHTML = `<option>Error loading models</option>`;
-    }
+    selectedModel = modelSelectDropdown.value;
+  } catch (_) {
+    modelSelectDropdown.innerHTML = `<option>Error loading models</option>`;
   }
 }
 
-export function initializeModelSelection(): void {
-  if (modelSelectDropdown) {
-    loadAvailableModels();
-
-    modelSelectDropdown.addEventListener("change", () => {
-      selectedAiModel = modelSelectDropdown.value;
-    });
-  }
+export function initializeModelSelection() {
+  loadAvailableModels();
+  modelSelectDropdown.onchange = () =>
+    (selectedModel = modelSelectDropdown.value);
 }
 
-export function getSelectedModel(): string {
-  return selectedAiModel;
-}
-
-export function setSelectedModel(model: string): void {
-  selectedAiModel = model;
-  if (modelSelectDropdown) {
-    modelSelectDropdown.value = model;
-  }
+export function getSelectedModel() {
+  return selectedModel;
 }
