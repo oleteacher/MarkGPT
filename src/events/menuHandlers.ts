@@ -30,13 +30,19 @@ export function setupMenuHandlers(): void {
 
 let keyboardShortcutsInitialized = false;
 
+function isMacOS(): boolean {
+  if ((navigator as any).userAgentData?.platform) {
+    return (navigator as any).userAgentData.platform === "macOS";
+  }
+  return /Mac/i.test(navigator.userAgent);
+}
+
 export function setupKeyboardShortcuts(): void {
   if (keyboardShortcutsInitialized) return;
   keyboardShortcutsInitialized = true;
 
   document.addEventListener("keydown", (event) => {
-    const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-    const cmdOrCtrl = isMac ? event.metaKey : event.ctrlKey;
+    const cmdOrCtrl = isMacOS() ? event.metaKey : event.ctrlKey;
 
     if (cmdOrCtrl) {
       switch (event.key.toLowerCase()) {
@@ -104,44 +110,36 @@ export function setupKeyboardShortcuts(): void {
       switch (event.key.toLowerCase()) {
         case "b":
           event.preventDefault();
-          const boldButton = document.getElementById("toolbar-bold");
-          if (boldButton) boldButton.click();
+          document.getElementById("toolbar-bold")?.click();
           break;
         case "i":
           if (event.shiftKey) {
             event.preventDefault();
-            const imageButton = document.getElementById("toolbar-image");
-            if (imageButton) imageButton.click();
+            document.getElementById("toolbar-image")?.click();
           } else {
             event.preventDefault();
-            const italicButton = document.getElementById("toolbar-italic");
-            if (italicButton) italicButton.click();
+            document.getElementById("toolbar-italic")?.click();
           }
           break;
         case "h":
           event.preventDefault();
-          const headingButton = document.getElementById("toolbar-heading");
-          if (headingButton) headingButton.click();
+          document.getElementById("toolbar-heading")?.click();
           break;
         case "l":
           event.preventDefault();
-          const listButton = document.getElementById("toolbar-list");
-          if (listButton) listButton.click();
+          document.getElementById("toolbar-list")?.click();
           break;
         case "`":
           event.preventDefault();
-          const codeButton = document.getElementById("toolbar-code");
-          if (codeButton) codeButton.click();
+          document.getElementById("toolbar-code")?.click();
           break;
         case "q":
           event.preventDefault();
-          const quoteButton = document.getElementById("toolbar-quote");
-          if (quoteButton) quoteButton.click();
+          document.getElementById("toolbar-quote")?.click();
           break;
         case "k":
           event.preventDefault();
-          const linkButton = document.getElementById("toolbar-link");
-          if (linkButton) linkButton.click();
+          document.getElementById("toolbar-link")?.click();
           break;
       }
     }
@@ -149,15 +147,11 @@ export function setupKeyboardShortcuts(): void {
     // Fullscreen preview
     if (event.key === "F11") {
       event.preventDefault();
-      const fullscreenButton = document.getElementById("fullscreen-preview");
-      if (fullscreenButton) fullscreenButton.click();
+      document.getElementById("fullscreen-preview")?.click();
     }
   });
 }
 
 export function setupAddTabButton(): void {
-  const addTabButton = document.getElementById("add-tab");
-  if (addTabButton) {
-    addTabButton.addEventListener("click", newFile);
-  }
+  document.getElementById("add-tab")?.addEventListener("click", newFile);
 }
