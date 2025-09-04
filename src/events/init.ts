@@ -1,58 +1,58 @@
 import {
-  setupMenuHandlers,
-  setupKeyboardShortcuts,
-  setupAddTabButton,
-} from "./menuHandlers";
-import { setupPanelResizing } from "../components/panelResizer";
-import { initializeTheme } from "../components/theme";
+    setupMenuHandlers,
+    setupKeyboardShortcuts,
+    setupAddTabButton,
+} from './menuHandlers';
+import { setupPanelResizing } from '../components/panelResizer';
+import { initializeTheme } from '../components/theme';
 import {
-  initializeFolderTreeHandlers,
-  createNewFileToolbar,
-  toggleBigOpenFolderButton,
-} from "../components/folderTree";
-import { setupTextFormattingButtons } from "../utils/textFormatting";
-import { initializeSelectionToolbar } from "../utils/selectionToolbar";
-import { initializePreviewSync } from "../markdown/previewSync";
-import { initializeChat } from "../ai/chat";
-import { initializeModelSelection } from "../ai/modelSelection";
-import { initializeOllamaCheck } from "../ai/ollamaCheck";
-import { createNewTab } from "../utils/tabManagement";
-import { initializeMarkdownInputHandlers } from "./markdownHandlers";
+    initializeFolderTreeHandlers,
+    createNewFileToolbar,
+    toggleBigOpenFolderButton,
+} from '../components/folderTree';
+import { setupTextFormattingButtons } from '../utils/textFormatting';
+import { initializeSelectionToolbar } from '../utils/selectionToolbar';
+import { initializePreviewSync } from '../markdown/previewSync';
+import { initializeChat } from '../ai/chat';
+import { initializeModelSelection } from '../ai/modelSelection';
+import { initializeOllamaCheck } from '../ai/ollamaCheck';
+import { createNewTab } from '../utils/tabManagement';
+import { initializeMarkdownInputHandlers } from './markdownHandlers';
 
 export function initializeApplication(): void {
-  // Setup core handlers
-  setupMenuHandlers();
-  setupKeyboardShortcuts();
-  setupAddTabButton();
+    // Setup core handlers
+    setupMenuHandlers();
+    setupKeyboardShortcuts();
+    setupAddTabButton();
 
-  // Setup UI components
-  setupPanelResizing();
-  initializeTheme();
+    // Setup UI components
+    setupPanelResizing();
+    initializeTheme();
 
-  // Setup folder tree functionality
-  initializeFolderTreeHandlers();
-  createNewFileToolbar();
+    // Setup folder tree functionality
+    initializeFolderTreeHandlers();
+    createNewFileToolbar();
 
-  // Setup text formatting
-  setupTextFormattingButtons();
-  initializeSelectionToolbar();
+    // Setup text formatting
+    setupTextFormattingButtons();
+    initializeSelectionToolbar();
 
-  // Setup markdown preview sync
-  initializePreviewSync();
+    // Setup markdown preview sync
+    initializePreviewSync();
 
-  // Setup AI features
-  initializeChat();
-  initializeModelSelection();
+    // Setup AI features
+    initializeChat();
+    initializeModelSelection();
 
-  // Setup markdown input handlers
-  initializeMarkdownInputHandlers();
+    // Setup markdown input handlers
+    initializeMarkdownInputHandlers();
 
-  // Create initial tab
-  createNewTab(null, "");
+    // Create initial tab
+    createNewTab(null, '');
 
-  // Initialize folder display
-  toggleBigOpenFolderButton();
+    // Initialize folder display
+    toggleBigOpenFolderButton();
 
-  // Check Ollama availability (this should be last)
-  initializeOllamaCheck();
+    // Check Ollama availability (this should be last)
+    initializeOllamaCheck();
 }

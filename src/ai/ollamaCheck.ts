@@ -1,29 +1,29 @@
 import {
-  chatInputBox,
-  sendChatButton,
-  selectionEditButton,
-  modelSelectDropdown,
-  statusMsg,
-} from "../components/uiElements";
-import { loadAvailableModels } from "./modelSelection";
-import { Ollama } from "ollama/browser";
+    chatInputBox,
+    sendChatButton,
+    selectionEditButton,
+    modelSelectDropdown,
+    statusMsg,
+} from '../components/uiElements';
+import { loadAvailableModels } from './modelSelection';
+import { Ollama } from 'ollama/browser';
 
-const ollama = new Ollama({ host: "http://127.0.0.1:11434" });
+const ollama = new Ollama({ host: 'http://127.0.0.1:11434' });
 
 export let isOllamaAvailable = false;
 
 async function checkOllamaAvailability(): Promise<boolean> {
-  try {
-    await ollama.list();
-    return true;
-  } catch {
-    return false;
-  }
+    try {
+        await ollama.list();
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 function createModal(): HTMLDivElement {
-  const modal = document.createElement("div");
-  modal.innerHTML = `
+    const modal = document.createElement('div');
+    modal.innerHTML = `
     <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
                 background: rgba(0,0,0,0.7); display: flex; align-items: center; 
                 justify-content: center; z-index: 10000;">
@@ -56,70 +56,75 @@ function createModal(): HTMLDivElement {
       </div>
     </div>
   `;
-  const retryBtn = modal.querySelector("#retry-btn") as HTMLButtonElement;
-  retryBtn.onclick = () => {
-    document.body.removeChild(modal);
-    initializeOllamaCheck();
-  };
-  const continueBtn = modal.querySelector("#continue-btn") as HTMLButtonElement;
-  continueBtn.onclick = () => {
-    document.body.removeChild(modal);
-    disableAIFeatures();
-  };
+    const retryBtn = modal.querySelector('#retry-btn') as HTMLButtonElement;
+    retryBtn.onclick = (): void => {
+        document.body.removeChild(modal);
+        initializeOllamaCheck();
+    };
+    const continueBtn = modal.querySelector(
+        '#continue-btn'
+    ) as HTMLButtonElement;
+    continueBtn.onclick = (): void => {
+        document.body.removeChild(modal);
+        disableAIFeatures();
+    };
 
-  return modal;
+    return modal;
 }
 
 function disableAIFeatures(): void {
-  const elements = [
-    {
-      el: chatInputBox,
-      props: {
-        disabled: true,
-        placeholder: "AI unavailable - Ollama not running",
-      },
-    },
-    { el: sendChatButton, props: { disabled: true } },
-    {
-      el: selectionEditButton,
-      props: { disabled: true, title: "AI unavailable - Ollama not running" },
-    },
-    { el: modelSelectDropdown, props: { disabled: true } },
-  ];
+    const elements = [
+        {
+            el: chatInputBox,
+            props: {
+                disabled: true,
+                placeholder: 'AI unavailable - Ollama not running',
+            },
+        },
+        { el: sendChatButton, props: { disabled: true } },
+        {
+            el: selectionEditButton,
+            props: {
+                disabled: true,
+                title: 'AI unavailable - Ollama not running',
+            },
+        },
+        { el: modelSelectDropdown, props: { disabled: true } },
+    ];
 
-  elements.forEach(({ el, props }) => {
-    if (el) Object.assign(el, props);
-  });
+    elements.forEach(({ el, props }) => {
+        if (el) Object.assign(el, props);
+    });
 
-  if (statusMsg) statusMsg.textContent = "Ollama not available";
+    if (statusMsg) statusMsg.textContent = 'Ollama not available';
 }
 
 function enableAIFeatures(): void {
-  const elements = [
-    {
-      el: chatInputBox,
-      props: { disabled: false, placeholder: "Ask me anything..." },
-    },
-    { el: sendChatButton, props: { disabled: false } },
-    {
-      el: selectionEditButton,
-      props: { disabled: false, title: "Edit with AI" },
-    },
-    { el: modelSelectDropdown, props: { disabled: false } },
-  ];
+    const elements = [
+        {
+            el: chatInputBox,
+            props: { disabled: false, placeholder: 'Ask me anything...' },
+        },
+        { el: sendChatButton, props: { disabled: false } },
+        {
+            el: selectionEditButton,
+            props: { disabled: false, title: 'Edit with AI' },
+        },
+        { el: modelSelectDropdown, props: { disabled: false } },
+    ];
 
-  elements.forEach(({ el, props }) => {
-    if (el) Object.assign(el, props);
-  });
+    elements.forEach(({ el, props }) => {
+        if (el) Object.assign(el, props);
+    });
 }
 
 export async function initializeOllamaCheck(): Promise<void> {
-  isOllamaAvailable = await checkOllamaAvailability();
+    isOllamaAvailable = await checkOllamaAvailability();
 
-  if (isOllamaAvailable) {
-    enableAIFeatures();
-    loadAvailableModels();
-  } else {
-    document.body.appendChild(createModal());
-  }
+    if (isOllamaAvailable) {
+        enableAIFeatures();
+        loadAvailableModels();
+    } else {
+        document.body.appendChild(createModal());
+    }
 }

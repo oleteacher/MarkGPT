@@ -49,27 +49,27 @@ https://github.com/MarkGPT-Editor/MarkGPT/releases/tag/app-v0.1.0
 
 1. **Clone the repository**
 
-   ```bash
-   git clone https://github.com/yourusername/markgpt.git
-   cd markgpt
-   ```
+    ```bash
+    git clone https://github.com/yourusername/markgpt.git
+    cd markgpt
+    ```
 
 2. **Install dependencies**
 
-   ```bash
-   bun install
-   ```
+    ```bash
+    bun install
+    ```
 
 3. **Run in development mode**
 
-   ```bash
-   bun run tauri dev
-   ```
+    ```bash
+    bun run tauri dev
+    ```
 
 4. **Build for production**
-   ```bash
-   bun run tauri build
-   ```
+    ```bash
+    bun run tauri build
+    ```
 
 ## 📖 Usage
 
@@ -93,11 +93,11 @@ https://github.com/MarkGPT-Editor/MarkGPT/releases/tag/app-v0.1.0
 - **Backend**: Rust with Tauri
 - **Build Tool**: Vite
 - **Libraries**:
-  - [Marked](https://marked.js.org/) - Markdown parsing
-  - [Highlight.js](https://highlightjs.org/) - Code syntax highlighting
-  - [KaTeX](https://katex.org/) - Math rendering
-  - [jsPDF](https://parallax.github.io/jsPDF/) - PDF generation
-  - [FontAwesome](https://fontawesome.com/) - Icons
+    - [Marked](https://marked.js.org/) - Markdown parsing
+    - [Highlight.js](https://highlightjs.org/) - Code syntax highlighting
+    - [KaTeX](https://katex.org/) - Math rendering
+    - [jsPDF](https://parallax.github.io/jsPDF/) - PDF generation
+    - [FontAwesome](https://fontawesome.com/) - Icons
 
 ## 🤝 Contributing
 
