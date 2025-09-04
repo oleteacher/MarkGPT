@@ -43,8 +43,26 @@ function positionToolbar(selection: { start: number; end: number }) {
 
   const textareaRect = markdownInput.getBoundingClientRect();
   const startPos = getCaretCoordinates(markdownInput, selection.start);
-  const toolbarX = textareaRect.left + startPos.left;
-  const toolbarY = textareaRect.top + startPos.top - 40; // 40px above
+  let toolbarX = textareaRect.left + (startPos.left - markdownInput.scrollLeft);
+  let toolbarY = textareaRect.top + (startPos.top - markdownInput.scrollTop) - 40; // 40px above
+
+  // Ensure toolbar stays within viewport bounds
+  const toolbarWidth = 120; // Approximate width of toolbar
+  const toolbarHeight = 30; // Approximate height of toolbar
+  const margin = 10;
+
+  if (toolbarY < margin) {
+    toolbarY = margin;
+  }
+  if (toolbarY + toolbarHeight > window.innerHeight) {
+    toolbarY = window.innerHeight - toolbarHeight - margin;
+  }
+  if (toolbarX < margin) {
+    toolbarX = margin;
+  }
+  if (toolbarX + toolbarWidth > window.innerWidth) {
+    toolbarX = window.innerWidth - toolbarWidth - margin;
+  }
 
   selectionToolbar.style.left = `${toolbarX}px`;
   selectionToolbar.style.top = `${toolbarY}px`;

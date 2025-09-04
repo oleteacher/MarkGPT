@@ -1,0 +1,3 @@
+- [x] Fix toolbar positioning in src/utils/selectionToolbar.ts to ensure it stays within viewport bounds for large selections
+- [x] Add checks to prevent toolbar from going off-screen (e.g., negative top position)
+- [x] Test the fix with large text selections to confirm "Edit with AI" button appears
