@@ -3,4 +3,3 @@ src-tauri/target/
 src-tauri/gen/
 bun.lock
 dist/
-package-lock.json
