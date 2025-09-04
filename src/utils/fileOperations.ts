@@ -15,6 +15,8 @@ import {
   refreshTabsDisplay,
 } from "./tabManagement";
 import { markdownInput, statusMsg } from "../components/uiElements";
+import html2canvas from "html2canvas";
+
 
 export async function saveFile(): Promise<void> {
   try {
@@ -142,7 +144,6 @@ export async function exportHtml(): Promise<void> {
   }
 }
 
-import html2canvas from "html2canvas";
 
 export async function exportPdf(): Promise<void> {
   try {
@@ -218,7 +219,7 @@ export async function exportPdf(): Promise<void> {
     tempDiv.style.color = "black";
     tempDiv.style.backgroundColor = "white";
     tempDiv.style.lineHeight = "1.6";
-    tempDiv.style.wordWrap = "break-word";
+    tempDiv.style.overflowWrap = "break-word";
     // keep page-break-friendly rules
     const style = document.createElement("style");
     style.textContent = `
